@@ -7,5 +7,8 @@ setup(
             "metasync = metasync:main"
         ]},
     packages = find_packages(),
+    package_data = {
+            "metasync": ["google_client_secrets.json"]
+    }
 )
 
