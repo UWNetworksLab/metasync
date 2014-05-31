@@ -209,7 +209,7 @@ def invoke_cmd(cmd, metasync, args):
     return func(metasync, args.args, args)
 
 
-if __name__ == '__main__':
+def main():
     # do all the dirty works on command args
     parser = argparse.ArgumentParser(prog='MetaSync')
     parser.add_argument('--version', action='version', version='%(prog)s 0.1')
@@ -278,3 +278,6 @@ if __name__ == '__main__':
 
     # invoke & exit
     exit(invoke_cmd(args.cmd, MetaSync(args.metasync, args), args))
+    
+if __name__ == '__main__':
+    main()
