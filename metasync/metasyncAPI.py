@@ -208,8 +208,10 @@ class MetaSync:
         # find repo
         curpath = os.path.abspath(curpath)
         orgpath = curpath
+        auth_dir = os.path.join(os.path.expanduser("~"), ".metasync")
         while True:
-            if(os.path.exists(os.path.join(curpath, META_DIR))): return curpath
+            path = os.path.join(curpath, META_DIR)
+            if(path != auth_dir and os.path.exists(os.path.join(curpath, META_DIR))): return curpath
             sp = os.path.split(curpath)
             if(sp[1] == ""): break
             curpath = sp[0] 
