@@ -879,9 +879,13 @@ class MetaSync:
                 content = blob.read()
                 util.write_file(pn, content.getvalue())
                 content.close()
+                # touch metadata blob (for cmd_status)
+                os.utime(os.path.join(self.path_objs, blob.hv), None)
             elif(blob.thv == "m"):
                 content = blob.read()
                 util.write_file(pn, content)
+                # touch metadata blob (for cmd_status)
+                os.utime(os.path.join(self.path_objs, blob.hv), None)
             else:
                 assert False
 
@@ -1236,46 +1240,55 @@ class MetaSync:
 
     def cmd_status(self, unit=BLOB_UNIT):
 
-        def simple_walk(path):
+        def simple_walk(folder):
+        # simple_walk will skip dipping into the folder 
+        # that are not tracked in the repo
             untracked = []
             changed = []
-            for f in os.listdir(path):
+
+            for f in os.listdir(folder):
                 if f == META_DIR:
                     continue
-                _ = os.path.basename(path)
-                if _ == '.' or _ == '':
-                    abspath = f
+                basename = os.path.basename(folder)
+                if basename == '.' or basename == '':
+                    relpath = f
                 else:
-                    abspath = os.path.join(path, f)
-                if abspath in checked:
+                    relpath = os.path.join(folder, f)
+                if relpath in tracked:
                     if os.path.isdir(f):
-                        _untracked, _changed = simple_walk(abspath)
+                        _untracked, _changed = simple_walk(relpath)
                         untracked.extend(_untracked)
                         changed.extend(_changed)
                     else:
-                        fblob = checked[abspath]
-                        fblob._load()
-                        curr_mtime = os.path.getmtime(abspath)
-                        old_mtime = fblob.mtime
-                        if curr_mtime > old_mtime:
+                        fblob = tracked[relpath]
+                        # compare the file modified time and its metadata blob modified time
+                        curr_mtime = os.path.getmtime(relpath)
+                        last_mtime = os.path.getmtime(os.path.join(self.path_objs, fblob.hv))
+                        if curr_mtime > last_mtime:
+                            # only load file when the file modified time is greater than metadata modified time
+                            fblob._load()
                             flag = False
-                            for (offset, chunk) in util.each_chunk2(abspath, unit):
+                            # compare chunk hash
+                            for (offset, chunk) in util.each_chunk2(relpath, unit):
                                 if util.sha1(chunk) != fblob.entries[offset].hv:
                                     flag = True
                                     break
                             if flag:
-                                changed.append(abspath)
+                                changed.append(relpath)
                 else:
-                    if os.path.isdir(abspath):
-                        abspath = os.path.join(abspath, '')
-                    untracked.append(abspath)
+                    if os.path.isdir(relpath):
+                        relpath = os.path.join(relpath, '')
+                    untracked.append(relpath)
             return untracked, changed
 
         if not self.check_sanity():
             dbg.err("this is not a metasync repo")
             return False
+
+        # switch to metasync repo root folder
         os.chdir(self.path_root)
 
+        # compare the head and master history
         head_history = self.get_history()
         master_history = self.get_history(True)
         head_diverge = 0
@@ -1299,9 +1312,9 @@ class MetaSync:
             print "and have %d and %d different commits each, respectively" % (head_diverge, master_diverge)
 
         root = self.get_root_blob()
-        checked = {}
+        tracked = {}
         for (path, blob) in root.walk():
-            checked[path] = blob
+            tracked[path] = blob
 
         untracked, changed = simple_walk('.')
         if changed:
