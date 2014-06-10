@@ -9,6 +9,7 @@ setup(
     packages = find_packages(),
     package_data = {
             "metasync": ["google_client_secrets.json"]
-    }
+    },
+	install_requires = ['requests>=2.3.0', 'watchdog', 'pycrypto', 'selenium', 'urllib3', 'httplib2'],
 )
 
