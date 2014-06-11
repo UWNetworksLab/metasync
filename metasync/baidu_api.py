@@ -63,9 +63,9 @@ class OAuth2(object):
     try:
       wait = WebDriverWait(browser, 30)
       username = wait.until(EC.presence_of_element_located((By.NAME, "userName")))
-      username.send_keys("eric_shc")
+      username.send_keys(raw_input("Enter your baidu userid: "))
       pwd = browser.find_element_by_name("password")
-      pwd.send_keys("Csep552!")
+      pwd.send_keys(getpass.getpass("Enter your baidu password:"))
       btn = browser.find_element_by_id("TANGRAM__3__submit")
       btn.click()
       wait = WebDriverWait(browser, 30)
