@@ -34,7 +34,85 @@
       <h3>Instruction</h3>
       <div class="alert alert-warning"><strong>Warning!</strong> MetaSync is currently alpha version! Use it only for research-purpose, and do not put any important files under MetaSync repository.</div>
 
-      <h4>Prerequisite</h4>
+      <h4>Required Softwares</h4>
+      <p>MetaSync written in Python. Currently it's developed and tested only with Python 2.7.</p>
+      <p>To install and use it, it needs Python 2.7 interpreter and python-setuptools package. In addition, it requires <a href="http://phantomjs.org/">phantomjs</a> binary in executable path.</p>
+
+      <h4>Download</h4>
+      <button type="button" class="btn btn-default btn-lg">
+      <span class="glyphicon glyphicon-download"></span>
+        Download MetaSync v0.1a
+      </button>
+      <p>Or you can clone the current devlopment version from github: <code>git clone git@github.com:UWNetworksLab/metasync.git</code></p>
+
+      <h4>Installation</h4>
+      <p>After extracting the tarball (or cloning the project), run <Br />
+      <code>python setup.py install</code>
+      </p>
+      <p>You can test if it's installed correctly by</p>
+      <pre>
+$ metasync --version
+MetaSync 0.1</pre>
+
+      <h3>How to use</h3>
+      <p>MetaSync allows users to use multpile synchornization services under it. Now it currently supports: Dropbox, Google Drive, OneDrive, Box.net, and Baidu. We are working on adding more providers.
+      To use those services, users need have accounts for them before using MetaSync with the services.</p>
+      <p>Basic commands for MetaSync are similar with version control systems (e.g., git)</p>
+
+      <h4>Initilizing a Repository</h4>
+      <p>MetaSync users can initialize multiple repositories under various services, which are differentiated through namespaces. In a directory to initialize you can initialize a repo with</p>
+      <pre>
+$ metasync init [namespace]</pre>
+<p>For example,</p>
+<pre>
+$ metasync init demo
+do you use encryption (y/n)?
+> n
+input storage backends, (e.g., dropbox,google,box,baidu,onedrive,disk)
+    dropbox@auth : dropbox.com account with auth info
+    google@auth  : drive.google.com account with auth info
+    box@auth     : box.com account with auth info
+    baidu@auth : baidu account with auth info
+    onedrive@auth : onedrive account with auth info
+    disk@path    : mock disk service rooting on path
+> dropbox,google
+input the number of replicas (default=2)
+> 1
+</pre>
+      <p>To specify which services you want to use, you can input the provider names separted with comma. Currently, it supports only one account per service, but we will allow multiple accounts in the next version.</p>
+      <p>If you haven't used MetaSync for those services, it will ask your account information for them.</p>
+
+      <h4>Cloning a repository</h4>
+      <p>Similarly, you can clone a repository from other comptuers (or other location in the same computer)</p>
+<pre>
+$ metasync clone demo
+input one of the storage backends, (e.g., dropbox,google,box)
+  for testing, use disk@/path (e.g., disk@/tmp)
+> dropbox
+do you use encryption (y/n)?
+> n
+</pre>
+      <h4>Managing files</h4>
+      <p>To add a new or modified file to the repository, you need explicitly checkin those files</p>
+<pre>
+$ metasync checkin [files]</pre>
+
+      <p>Those checked files are currently maintained within the local tree. To merge it into the master for other devices to sync against, you need to call</p>
+<pre>
+$ metasync push</pre>
+
+On the other hand, to fetch and update files, run
+<pre>
+$ metasync fetch
+$ metasnyc update</pre>
+
+      <h4>Garbage Collection</h4>
+      Currently, non-used object files are not automatically removed, so you need to periodically run garbage collection to aviod running out of your service storage.
+<pre>
+$ metasync gc</pre> 
+
+      <h3>Report Issues</h3>
+      <p>MetaSync is an alpha-released version, and we expect many bugs still remain. Please try it out and share any issues with us via <a href="https://github.com/UWNetworksLab/metasync/issues?state=open">Issue tracker</a>.</p>
 
 
       <h3>Publication</h3>
