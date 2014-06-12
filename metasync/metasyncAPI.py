@@ -1073,7 +1073,7 @@ class MetaSync:
         # check head
         head = self.get_head_value()
         tracked = set([])
-        if(head is not None):
+        if(head is not None and len(head)>0):
             blob = self.blobstore.get_blob(head, "D") 
             _find_all_blobs(blob, tracked)
         # check master
@@ -1087,8 +1087,7 @@ class MetaSync:
 
         # remove following 
         blobs_to_remove = allblobs - tracked
-        print(blobs_to_remove)
-        exit()
+        
         def __rm(srv, remote_path):
             dbg.job("submitted to: %s (%s)" % (srv, remote_path))
             srv.rm(remote_path)
