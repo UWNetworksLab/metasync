@@ -644,7 +644,6 @@ class MetaSync:
         root = self.get_root_blob()
         dbg.dbg("restore")
         for name, blob in root.walk():
-            print(name, blob)
             pn = os.path.join(self.path_root, name)
             if blob.thv == "F":
                 content = blob.read()
@@ -943,6 +942,19 @@ class MetaSync:
         if self.check_sanity():
             return False
 
+        # reset all the path by including the namespace
+        self.path_root   = os.path.join(self.path_root, namespace)
+        self.path_meta   = os.path.join(self.path_root, META_DIR)
+        self.path_conf   = self.get_path("config")
+        self.path_objs   = self.get_path("objects")
+        self.path_master = self.get_path("master")
+        self.path_master_history = self.get_path("master_history")
+        self.path_head_history = self.get_path("head_history")
+
+        if os.path.exists(self.path_root):
+            dbg.err("%s already exists." % self.path_root)
+            return False
+
         if backend is None:
             print "input one of the storage backends, (e.g., dropbox,google,box)"
             print "  for testing, use disk@/path (e.g., disk@/tmp)"
@@ -950,6 +962,10 @@ class MetaSync:
 
         srv  = services.factory(backend)
         self.namespace = namespace
+
+        # create repo directory
+        os.mkdir(namespace)
+
         seed = srv.get(self.get_remote_path("config"))
         conf = util.loads_config(seed)
 
