@@ -129,9 +129,11 @@ def cmd_peek(metasync, args, opts):
     metasync.cmd_peek()
 
 def cmd_daemon(metasync, args, opts):
-    "invoke a daemon (and wait)"
-
-    daemon.start(metasync, args, opts)
+    "invoke a daemon (and wait) - currently disabled"
+    if(opts.debug):
+        daemon.start(metasync, args, opts)
+    else:
+        dbg.err("Currently daemon is supported only for debug mode.")
 
 def cmd_test(metasync, args, opts):
     "quick test (e.g., metasync test {%s})"

@@ -251,7 +251,6 @@ class MetaSync:
         #     self.translators.append(TrSigned(self))
 
         beg = time.time()
-        # initiate mapping --- still pretty slow
         if(os.path.exists(self.get_path("mapping.pcl"))):
             with open(self.get_path("mapping.pcl")) as f:
                 self.mapping = pickle.load(f)
@@ -432,11 +431,8 @@ class MetaSync:
     def _put_all(self, path, remote_path):
         # XXX. handle errs
         def __put(srv):
-            #dbg.job("submitted to: %s" % srv)
             with open(path, "rb") as f:
-                #print 'start to put'
                 srv.put(remote_path, f.read())
-                #print 'put ends'
 
         # submit jobs
         for srv in self.services:
@@ -1030,7 +1026,11 @@ class MetaSync:
         with open(self.path_conf, "w") as fd:
             conf.write(fd)
 
-        self._load()
+        try: 
+            self._load()
+        except NameError:
+            shutil.rmtree(self.path_meta)
+            return False
 
         # put config into remote
         conf.remove_option('core','clientid')

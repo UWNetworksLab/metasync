@@ -30,7 +30,7 @@ def factory(srv):
     elif srv == "onedrive":
         return OneDriveAPI()
     dbg.err("No such a provider: %s" % srv)
-    exit(1)
+    raise NameError(srv) 
 
 # convert class name to cute slug
 def slug(cls):
