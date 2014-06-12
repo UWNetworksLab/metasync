@@ -267,13 +267,11 @@ def main():
 
     args = parser.parse_args()
     # set quite
-    if args.quite:
-        dbg.quiet(["info", "err"])
-    else:
-        dbg.quiet(["info", "err","dbg","time"])
-
+    dbg.quiet(["info", "err"])
+    
     if args.debug:
         util.install_pdb()
+        dbg.quiet(["info", "err","dbg","time"])
     import services
     services.auth_dir = args.authdir
 
