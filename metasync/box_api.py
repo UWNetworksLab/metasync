@@ -5,16 +5,15 @@ import json
 import time
 
 import httplib, urllib, urlparse
-import BaseHTTPServer
 
 import requests
 from threading import Lock
 from cStringIO import StringIO
 
+import dbg
 import util
 from base import *
 from error import *
-
 
 CLIENT_ID = '7nli0hgyk877dk66mcsunydz98ex0zl2'
 CLINET_SECRET = 'G32oUY9TVTkbCRGBCpJSpxO3g0eri4BP'
@@ -32,47 +31,23 @@ class OAuth2(object):
 
   OAUTH2_URL = 'https://www.box.com/api/oauth2'
   REDIRECT_URI = 'https://www.box.com/'
-  received = False
-
-  class HttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
-
-    success = None
-    code = None
-
-    def do_GET(self):
-      pos = self.path.find('code=')
-      if (pos >= 0):
-        OAuth2.HttpHandler.success = True
-        for token in self.path[2:].split('&'):
-          if (token.find('code') >= 0):
-            OAuth2.HttpHandler.code = token[5:]
-            break
-        reply = 'User granted.\nThe authentication flow has completed.\nNow you can close the tab and go back the MetaSync.'
-      else:
-        OAuth2.HttpHandler.success = False
-        for token in self.path[2:].split('&'):
-          if (token.find('description') >= 0):
-            OAuth2.HttpHandler.detail = token[18:] #error_description=
-            break
-        reply = 'User denied.'
-
-      self.send_response(200)
-      self.send_header("Content-type", "html")
-      self.end_headers()
-      self.wfile.write(reply)
-
-      OAuth2.received = True
 
   @staticmethod
   def request_token():
+    dbg.info('Request access token from Box')
     code = OAuth2._authorize()
-    return OAuth2._token_request('authorization_code', code=code)
+    token = OAuth2._token_request('authorization_code', code=code)
+    dbg.info('Authentication successful')
+    return token
 
   @staticmethod
   def refresh_token(refresh_token):
+    dbg.info('Refresh access token from Box')
     if not refresh_token:
       raise Exception('Refresh token is null')
-    return OAuth2._token_request('refresh_token', refresh_token=refresh_token)
+    token = OAuth2._token_request('refresh_token', refresh_token=refresh_token)
+    dbg.info('Refresh successful')
+    return token
 
   @staticmethod
   def _authorize():
@@ -84,7 +59,7 @@ class OAuth2(object):
     from selenium.webdriver.common.by import By
 
     url = OAuth2.OAUTH2_URL + '/authorize?response_type=code&client_id=%s&redirect_uri=%s' % (CLIENT_ID, OAuth2.REDIRECT_URI)
-    print 'open auth url: ', url
+    # print 'Open auth url:', url
     import tempfile
     browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'))
     browser.get(url)
@@ -96,9 +71,9 @@ class OAuth2(object):
       print(browser.page_source)
       browser.quit()
       raise Exception("timeout for authorization")
-    email.send_keys(raw_input("Enter your box.net email: "))
+    email.send_keys(raw_input("Enter your Box email:"))
     pwd = browser.find_element_by_id("password")
-    pwd.send_keys(getpass.getpass("Enter your box.net password:"))
+    pwd.send_keys(getpass.getpass("Enter your Box password:"))
     pwd.send_keys(Keys.RETURN)
 
     try:
@@ -182,12 +157,10 @@ class Token(object):
     return {'Authorization': 'Bearer %s' % self._token['access_token']}
 
   def refresh(self):
-    print 'refresh access token'
     if 'refresh_token' in self._token:
       token = OAuth2.refresh_token(self._token['refresh_token'])
     else:
-      print 'No refresh token is in the access token'
-      print 'Now request a new access token'
+      dbg.info('No refresh token in the access token')
       token = OAuth2.request_token()
 
     self.set_token(token)

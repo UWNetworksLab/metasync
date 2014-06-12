@@ -7,6 +7,7 @@ from cStringIO import StringIO
 from dropbox.rest import ErrorResponse
 from dropbox.client import DropboxClient, DropboxOAuth2FlowNoRedirect
 
+import dbg
 import util
 from base import *
 
@@ -36,7 +37,6 @@ class DropboxAPI(StorageAPI, AppendOnlyLog):
         ACCESS_TOKEN = file.readline().rstrip()
         USER_ID = file.readline().rstrip()
     except IOError:
-      print('Dropbox need to be authorized')
       ACCESS_TOKEN, USER_ID = self._authorize()
 
     self.client = DropboxClient(ACCESS_TOKEN)
@@ -49,9 +49,10 @@ class DropboxAPI(StorageAPI, AppendOnlyLog):
 
 
   def _authorize(self):
+    dbg.info('Request access token from Dropbox')
     flow = DropboxOAuth2FlowNoRedirect(APP_KEY, APP_SECRET)
     authorize_url = flow.start()
-    print('open auth url: ' + authorize_url)
+    # print 'Open auth url:', authorize_url
     browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'))
     browser.get(authorize_url)
     try:
@@ -62,9 +63,9 @@ class DropboxAPI(StorageAPI, AppendOnlyLog):
       print(browser.page_source)
       browser.quit()
       raise Exception("timeout for authorization")
-    email.send_keys(raw_input("Enter your dropbox email: "))
+    email.send_keys(raw_input("Enter your Dropbox email:"))
     pwd = browser.find_element_by_xpath("//input[@name='login_password']") 
-    pwd.send_keys(getpass.getpass("Enter your dropbox password:"))
+    pwd.send_keys(getpass.getpass("Enter your Dropbox password:"))
     pwd.send_keys(Keys.RETURN)
     try:
       wait = WebDriverWait(browser, 30)
@@ -94,6 +95,8 @@ class DropboxAPI(StorageAPI, AppendOnlyLog):
     with open(self.auth_file, 'w') as file:
       file.write(access_token + "\n")
       file.write(user_id + "\n")
+
+    dbg.info('Authentication successful')
 
     return (access_token, user_id)
 
@@ -300,19 +303,19 @@ class DropboxAPI(StorageAPI, AppendOnlyLog):
     return new_logs, new_clock
 
   def share(self, path, target_email):
-    browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'))
     url = "https://www.dropbox.com/"
+    print 'Get access token from Dropbox'
+    print 'Open auth url:', url
+    browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'))
     browser.get(url)
     try:
       wait = WebDriverWait(browser, 30)
       btn = wait.until(EC.element_to_be_clickable((By.XPATH, "//div[@id='sign-in']/a")))
       btn.click()
       email = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[@id='login_email']")))
-      #email.send_keys(raw_input("Enter your dropbox email: "))
-      email.send_keys("icemelon9@gmail.com")
+      email.send_keys(raw_input("Enter your Dropbox email:"))
       pwd = browser.find_element_by_xpath("//input[@id='login_password']") 
-      #pwd.send_keys(getpass.getpass("Enter your dropbox password:"))
-      pwd.send_keys("Csep552!")
+      pwd.send_keys(getpass.getpass("Enter your Dropbox password:"))
       pwd.send_keys(Keys.RETURN)
       target_folder = wait.until(EC.element_to_be_clickable((By.XPATH, "//a[text()='%s']" % path)))
       target_folder.click()

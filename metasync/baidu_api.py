@@ -11,6 +11,7 @@ import httplib, urllib, urlparse
 from cStringIO import StringIO
 import requests
 
+import dbg
 import util
 from base import *
 from error import *
@@ -32,14 +33,20 @@ class OAuth2(object):
 
   @staticmethod
   def request_token():
+    dbg.info('Request access token from Baidu')
     code = OAuth2._authorize()
-    return OAuth2._token_request('authorization_code', code=code)
+    token = OAuth2._token_request('authorization_code', code=code)
+    dbg.info('Authentication successful')
+    return token
   
   @staticmethod
   def refresh_token(refresh_token):
+    dbg.info('Refresh access token from Baidu')
     if not refresh_token:
       raise Exception('Refresh token is null')
-    return OAuth2._token_request('refresh_token', refresh_token=refresh_token)
+    token = OAuth2._token_request('refresh_token', refresh_token=refresh_token)
+    dbg.info('Refresh successful')
+    return token
 
   @staticmethod
   def _authorize():
@@ -57,13 +64,13 @@ class OAuth2(object):
       'scope': 'netdisk'
     }
     url = OAuth2.AUTH_URL + '?' + urllib.urlencode(params)
-    #webbrowser.open(url)
+    #print 'Open auth url:', url
     browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'))
     browser.get(url)
     try:
       wait = WebDriverWait(browser, 30)
       username = wait.until(EC.presence_of_element_located((By.NAME, "userName")))
-      username.send_keys(raw_input("Enter your baidu userid: "))
+      username.send_keys(raw_input("Enter your baidu userid:"))
       pwd = browser.find_element_by_name("password")
       pwd.send_keys(getpass.getpass("Enter your baidu password:"))
       btn = browser.find_element_by_id("TANGRAM__3__submit")
@@ -144,12 +151,10 @@ class Token(object):
     return self._token['access_token']
 
   def refresh(self):
-    print 'refresh access tokens'
     if 'refresh_token' in self._token:
       token = OAuth2.refresh_token(self._token['refresh_token'])
     else:
-      print 'No refresh token is in the access token'
-      print 'Now request a new access token'
+      dbg.info('No refresh token in the access token')
       token = OAuth2.request_token()
 
     self.set_token(token)

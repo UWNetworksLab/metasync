@@ -123,10 +123,12 @@ class GoogleAPI(StorageAPI, AppendOnlyLog):
     from selenium.webdriver.support import expected_conditions as EC
     from selenium.webdriver.common.by import By
 
+    dbg.info('Request access token from Google Drive')
+
     oauth_callback = client.OOB_CALLBACK_URN
     flow.redirect_uri = oauth_callback
     authorize_url = flow.step1_get_authorize_url()
-    print(authorize_url)
+    #print 'Open auth url:', authorize_url
     import tempfile
     browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'))
     browser.get(authorize_url)
@@ -138,9 +140,9 @@ class GoogleAPI(StorageAPI, AppendOnlyLog):
       print(browser.page_source)
       browser.quit()
       raise Exception("timeout for authorization")
-    email.send_keys(raw_input("Enter your google drive email: "))
+    email.send_keys(raw_input("Enter your Google Drive email:"))
     pwd = browser.find_element_by_id("Passwd")
-    pwd.send_keys(getpass.getpass("Enter your google drive password:"))
+    pwd.send_keys(getpass.getpass("Enter your Google Drive password:"))
     btn = browser.find_element_by_id("signIn")
     btn.click()
     try:
@@ -170,7 +172,8 @@ class GoogleAPI(StorageAPI, AppendOnlyLog):
 
     storage.put(credential)
     credential.set_store(storage)
-    print 'Authentication successful.'
+
+    dbg.info('Authentication successful')
 
     return credential
 
@@ -184,7 +187,6 @@ class GoogleAPI(StorageAPI, AppendOnlyLog):
     if credentials is None or credentials.invalid:
       # if credential doesn't exist or exprires
       # need to require the authentication
-      #credentials = tools.run_flow(FLOW, storage, flags)
       credentials = self._authorize(FLOW, storage, flags)
 
     http = httplib2.Http()

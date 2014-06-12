@@ -10,6 +10,7 @@ import requests
 from threading import Lock
 from cStringIO import StringIO
 
+import dbg
 import util
 from error import *
 from base import *
@@ -34,14 +35,20 @@ class OAuth2(object):
 
   @staticmethod
   def request_token():
+    dbg.info('Request access token from OneDrive')
     code = OAuth2._authorize()
-    return OAuth2._token_request('authorization_code', code=code)
+    token = OAuth2._token_request('authorization_code', code=code)
+    dbg.info('Authentication successful')
+    return token
   
   @staticmethod
   def refresh_token(refresh_token):
+    dbg.info('Refresh access token from OneDrive')
     if not refresh_token:
       raise Exception('Refresh token is null')
-    return OAuth2._token_request('refresh_token', refresh_token=refresh_token)
+    token = OAuth2._token_request('refresh_token', refresh_token=refresh_token)
+    dbg.info('Refresh successful')
+    return token
 
   @staticmethod
   def _authorize():
@@ -58,8 +65,7 @@ class OAuth2(object):
       'scope': 'wl.skydrive_update wl.offline_access'
     }
     authorize_url = OAuth2.AUTH_RUL + '?' + urllib.urlencode(params)
-    print 'open auth url: ', authorize_url
-    #webbrowser.open(url)
+    # print 'Open auth url:', authorize_url
     import tempfile
     browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'))
     browser.get(authorize_url)
@@ -71,7 +77,7 @@ class OAuth2(object):
       print(browser.page_source)
       browser.quit()
       raise Exception("timeout for authorization")
-    email.send_keys(raw_input("Enter your microsoft account: "))
+    email.send_keys(raw_input("Enter your OneDrive account:"))
     pwd = browser.find_element_by_xpath("//input[@name='passwd']") 
     pwd.send_keys(getpass.getpass("Enter your password:"))
     pwd.send_keys(Keys.RETURN)
@@ -171,12 +177,10 @@ class Token(object):
     return self._token['access_token']
 
   def refresh(self):
-    print 'refresh access token'
     if 'refresh_token' in self._token:
       token = OAuth2.refresh_token(self._token['refresh_token'])
     else:
-      print 'No refresh token is in the access token'
-      print 'Now request a new access token'
+      dbg.info('No refresh token in the access token')
       token = OAuth2.request_token()
 
     self.set_token(token)
