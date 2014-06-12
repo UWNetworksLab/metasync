@@ -19,3 +19,7 @@ LOCK_VALID_TIME = 300 #5min
 
 # message valid time
 MSG_VALID_TIME  = 60  #1min
+
+# authentication directory
+import os
+AUTH_DIR = os.path.join(os.path.expanduser("~"), ".metasync")

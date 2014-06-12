@@ -22,7 +22,8 @@ from base import *
 CLIENT_SECRETS = os.path.join(os.path.dirname(__file__), 'google_client_secrets.json')
 
 # Authentication file
-AUTH_FILE = os.path.join(os.path.dirname(__file__), 'google.auth')
+from params import AUTH_DIR
+AUTH_FILE = os.path.join(AUTH_DIR, 'google.auth')
 
 # Specify the authentication scope
 # auth/drive has the full access to user's files stored in drive

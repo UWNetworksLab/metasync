@@ -24,7 +24,8 @@ EXCEPTION_MAP = {
   httplib.UNAUTHORIZED: Unauthorized,
 }
 
-AUTH_FILE = os.path.join(os.path.dirname(__file__), 'baidu.auth')
+from params import AUTH_DIR
+AUTH_FILE = os.path.join(AUTH_DIR, 'baidu.auth')
 
 class OAuth2(object):
 

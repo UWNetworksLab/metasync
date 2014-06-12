@@ -10,9 +10,7 @@ from baidu_api    import BaiduAPI
 from onedrive_api import OneDriveAPI
 
 all_services = [DropboxAPI, GoogleAPI, BoxAPI, BaiduAPI, OneDriveAPI, DiskAPI]
-auth_dir = os.path.join(os.path.expanduser("~"), ".metasync")
-if(not os.path.exists(auth_dir)):
-    os.mkdir(auth_dir)
+
 # factory for service api
 def factory(srv):
     srv = srv.strip()

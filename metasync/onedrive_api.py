@@ -25,7 +25,8 @@ EXCEPTION_MAP = {
   httplib.NOT_FOUND: ItemDoesNotExist
 }
 
-AUTH_FILE = os.path.join(os.path.dirname(__file__), 'onedrive.auth')
+from params import AUTH_DIR
+AUTH_FILE = os.path.join(AUTH_DIR, 'onedrive.auth')
 
 class OAuth2(object):
 

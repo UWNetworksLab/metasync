@@ -29,8 +29,8 @@ class DropboxAPI(StorageAPI, AppendOnlyLog):
   "dropbox@auth : dropbox.com account with auth info"
 
   def __init__(self):
-    import services
-    authdir = services.auth_dir if services.auth_dir is not None else os.path.dirname(__file__)
+    from params import AUTH_DIR
+    authdir = AUTH_DIR 
     self.auth_file = os.path.join(authdir, 'dropbox.auth')
     try:
       with open(self.auth_file, 'r') as file:

@@ -227,6 +227,9 @@ class MetaSync:
         if not self.check_sanity():
             return
 
+        print(AUTH_DIR)
+        if(not os.path.exists(AUTH_DIR)): os.mkdir(AUTH_DIR)
+
         # load config
         self.config    = util.load_config(self.path_conf)
         self.namespace = self.config.get("core", "namespace")
