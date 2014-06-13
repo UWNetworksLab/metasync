@@ -27,7 +27,7 @@ def cmd_share(metasync, args, opts):
     metasync.cmd_share(target_email)
 
 def cmd_init(metasync, args, opts):
-    "initialize the repo (e.g., metasync init [dir])"
+    "initialize the repo (e.g., metasync init [namespace])"
 
     # namespace to avoid conflict
     ns = args[0] if len(args) > 0 else str(util.gen_uuid())
@@ -55,7 +55,7 @@ def cmd_gc(metasync, args, opts):
         return -1
 
 def cmd_mv(metasync, args, opts):
-    "move file"
+    "move file (e.g., metasync mv [src] [dst])"
 
     if len(args) != 2: 
         dbg.err("not enough arguments. e.g., metasync mv [src] [dst]")
@@ -68,7 +68,6 @@ def cmd_mv(metasync, args, opts):
 
 def cmd_clone(metasync, args, opts):
     "clone the repo (e.g., metasync clone [namespace])"
-
     if(len(args) < 1):
         dbg.err("It requires namespace")
         return -1
@@ -90,7 +89,7 @@ def cmd_checkin(metasync, args, opts):
     metasync.cmd_checkin(target)
 
 def cmd_fetch(metasync, args, opts):
-    "fetch blob stores from the repo (e.g., metasync pull)"
+    "fetch blob stores from the repo (e.g., metasync fetch)"
 
     metasync.cmd_fetch()
 
@@ -110,23 +109,25 @@ def cmd_rm(metasync, args, opts):
         metasync.cmd_rm(f)
 
 def cmd_push(metasync, args, opts):
-    "XXX."
+    "push changes to master"
 
     if not metasync.cmd_push():
         dbg.err("Can't push")
         return -1
 
 def cmd_update(metasync, args, opts):
-    "XXX."
+    "update fetched changes into local filesystem. (e.g., metasync update)"
 
     if not metasync.cmd_update():
         dbg.err("Can't update")
         return -1
 
+"""
 def cmd_peek(metasync, args, opts):
     "XXX."
 
     metasync.cmd_peek()
+"""
 
 def cmd_daemon(metasync, args, opts):
     "invoke a daemon (and wait) - currently disabled"
@@ -268,7 +269,7 @@ def main():
     args = parser.parse_args()
     # set quite
     dbg.quiet(["info", "err"])
-    
+
     if args.debug:
         util.install_pdb()
         dbg.quiet(["info", "err","dbg","time"])
