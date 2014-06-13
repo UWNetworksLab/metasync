@@ -102,10 +102,20 @@ $ metasync checkin [files]</pre>
 <pre>
 $ metasync push</pre>
 
-On the other hand, to fetch and update files, run
+<p>On the other hand, to fetch and update files, run</p>
 <pre>
 $ metasync fetch
 $ metasnyc update</pre>
+
+<p>You can check the current status</p>
+<pre>
+$ metasync status
+
+Your branch is ahead of master by 1 commit(s).
+
+Changes not checked in:
+    modified:   toto
+</pre>
 
       <h4>Garbage Collection</h4>
       Currently, non-used object files are not automatically removed, so you need to periodically run garbage collection to aviod running out of your service storage.
