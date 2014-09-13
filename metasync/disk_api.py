@@ -29,6 +29,10 @@ class DiskAPI(StorageAPI, AppendOnlyLog):
         util.mkdirs(os.path.dirname(pn))
         return util.write_file(pn, content)
 
+    def putdir(self, path):
+        pn = self.get_path(path)
+        util.mkdirs(pn)
+
     def listdir(self, path):
         pn = self.get_path(path)
         if not os.path.exists(pn):

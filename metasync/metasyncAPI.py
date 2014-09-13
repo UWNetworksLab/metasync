@@ -965,6 +965,7 @@ class MetaSync:
         os.mkdir(namespace)
 
         seed = srv.get(self.get_remote_path("config"))
+        seed = srv.get(self.get_remote_path("configs/%s" % seed))
         conf = util.loads_config(seed)
 
         os.mkdir(self.path_meta)
@@ -1040,7 +1041,12 @@ class MetaSync:
 
         with io.BytesIO() as out:
             conf.write(out)
-            self._put_all_content(out.getvalue(), self.get_remote_path("config"), True)
+            val = out.getvalue()
+            configname = util.sha1(val) 
+            self._put_all_content(val, self.get_remote_path("configs/%s" % configname), True)
+
+            #temporary --- move this to pPaxos
+            self._put_all_content(configname, self.get_remote_path("config"), True)
 
         # re-init the repo
         util.empty_file(self.path_master)
