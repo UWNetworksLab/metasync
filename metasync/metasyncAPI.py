@@ -187,7 +187,7 @@ class MetaSync:
         self.path_conf   = self.get_path("config")
         self.path_objs   = self.get_path("objects")
         self.path_master = self.get_path("master")
-        self.path_master_history = self.get_path("master_history")
+        self.path_prev_master = self.get_path("prev_master")
         self.path_head_history = self.get_path("head_history")
         self.options     = opts
 
@@ -657,6 +657,15 @@ class MetaSync:
                     pass
         return True
 
+    def propose_value(self, prev, newvalue):
+        from paxos import Proposer
+        self.proposer = Proposer(newvalue, self.services, self.get_remote_path("pPaxos/"+prev))
+        if(self.proposer.propose() == newvalue):
+            return True
+        else:
+            return False
+
+    # XXX: should fix
     def lock_master(self):
         from paxos import Proposer
         self.proposer = Proposer(self.clientid, self.services, self.get_remote_path("lock"))
@@ -668,6 +677,7 @@ class MetaSync:
         else:
             return False
 
+    # XXX: should fix
     def unlock_master(self):
         self.proposer.done()
         self.proposer.join()
@@ -1043,24 +1053,27 @@ class MetaSync:
             conf.write(out)
             val = out.getvalue()
             configname = util.sha1(val) 
-            self._put_all_content(val, self.get_remote_path("configs/%s" % configname), True)
+            self._put_all_content(val, self.get_remote_path("configs/%s" % configname[:6]), True)
 
             #temporary --- move this to pPaxos
-            self._put_all_content(configname, self.get_remote_path("config"), True)
+            self._put_all_content(configname[:6], self.get_remote_path("config"), True)
 
         # re-init the repo
-        util.empty_file(self.path_master)
         util.empty_file(self.get_head())
-        util.empty_file(self.path_master_history)
-        util.empty_file(self.path_head_history)
-
         self._put_all_dir(self.get_remote_path("objects"))
-        self._put_all(self.path_master, self.get_remote_path("master"))
-        self._put_all(self.path_master_history, self.get_remote_path("master_history"))
         self._put_all(self.get_head() , self.get_remote_path(self.get_head_name()))
+        prev_master = "." + configname[:6]
+        with open(self.path_prev_master, "w") as f:
+            f.write(prev_master)
+
+        from paxos import Proposer
+        self.proposer = Proposer(None, self.services, self.get_pPaxos_path(prev_master))
         self._join()
 
         return True
+
+    def get_pPaxos_path(self, path):
+        return self.get_remote_path("pPaxos/" + path)
 
 
     def cmd_gc(self):
