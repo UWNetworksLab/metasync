@@ -243,6 +243,9 @@ class BoxAPI(StorageAPI, AppendOnlyLog):
 
   def _path_to_metadata(self, path, isfolder=False):
     metadata = BoxMetaData.getInstance().path_to_metadata(path, isfolder)
+    """
+    # it's problematic.
+    # if the path doens't exist, it'll backoff forever
     if not metadata:
       backoff = 0.5
       metadata = self.search(path)
@@ -250,6 +253,16 @@ class BoxAPI(StorageAPI, AppendOnlyLog):
         time.sleep(backoff)
         metadata = self.search(path)
         backoff *= 2
+    """
+    if not metadata:
+      backoff = 0.5
+      while True:
+        try:
+          metadata = self.search(path)
+          break
+        except:
+          time.sleep(backoff)
+          backoff*=2
     return metadata
 
   def _cache_metadata(self, path, metadata):
