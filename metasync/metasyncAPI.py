@@ -945,6 +945,7 @@ class MetaSync:
         #self.restore_from_master()
         return True
 
+    #XXX: Seungyeop is working on it.
     def cmd_clone(self, namespace, backend=None, encrypt_key=None):
         # if wrong target
         if self.check_sanity():
@@ -955,9 +956,7 @@ class MetaSync:
         self.path_meta   = os.path.join(self.path_root, META_DIR)
         self.path_conf   = self.get_path("config")
         self.path_objs   = self.get_path("objects")
-        self.path_master = self.get_path("master")
-        self.path_master_history = self.get_path("master_history")
-        self.path_head_history = self.get_path("head_history")
+        #self.path_head_history = self.get_path("head_history")
 
         if os.path.exists(self.path_root):
             dbg.err("%s already exists." % self.path_root)
@@ -973,13 +972,23 @@ class MetaSync:
 
         # create repo directory
         os.mkdir(namespace)
-
-        seed = srv.get(self.get_remote_path("config"))
-        seed = srv.get(self.get_remote_path("configs/%s" % seed))
-        conf = util.loads_config(seed)
-
         os.mkdir(self.path_meta)
         os.mkdir(self.path_objs)
+
+        # copy all the heads. 
+        head_clients = filter(lambda x:x.startswith("head_"), srv.listdir(self.get_remote_path("")))
+        for head in head_clients: 
+            with open(self.get_path(head), "w") as f:
+                f.write(srv.get(self.get_remote_path(head)))
+
+        # find out the current master
+        # TEMP: use the first one.
+        curmaster = util.read_file(self.get_path(head_clients[0]))
+        sp = curmaster.split(".")
+        master = sp[0]
+        seed = sp[1]
+        seed = srv.get(self.get_remote_path("configs/%s" % seed))
+        conf = util.loads_config(seed)
 
         # setup client specific info
         conf.set('core', 'clientid'  , util.gen_uuid())
@@ -991,24 +1000,22 @@ class MetaSync:
         self._load()
         beg = time.time()
         self.bstore_download()
-
-        # need to change into checking all the masters and use the latest version
-        self._get(srv, self.path_master, self.get_remote_path("master"))
-        self._get(srv, self.path_master_history, self.get_remote_path("master_history"))
         self._join()
 
-        # copy master to local repo
-        shutil.copyfile(self.path_master, self.get_path(self.get_head_name()))
-        shutil.copyfile(self.path_master_history, self.path_head_history)
+        with open(self.get_head(), "w") as f:
+            f.write(curmaster)
+        with open(self.get_path("prev_master"), "w") as f:
+            f.write(curmaster)
 
         # send my head to remote
         self._put_all(self.get_head(), self.get_remote_path(self.get_head_name()))
         self._join()
 
-        ret = self.restore_from_master()
+        if (master)
+            ret = self.restore_from_master()
         end = time.time()
         dbg.dbg("clone: %ss" % (end-beg))
-        return ret
+        return True
 
     def cmd_init(self, namespace, backend=None, nreplicas=None, encrypt_key=None):
         # already initialized?
@@ -1031,6 +1038,7 @@ class MetaSync:
         conf.set('core', 'encryptkey', _get_conf_encryptkey(encrypt_key))
 
         # backend: info about sync service providers
+        # XXX: Error handling
         conf.add_section('backend')
         conf.set('backend', 'services' , _get_conf_services(backend))
         conf.set('backend', 'nreplicas', _get_conf_nreplicas(nreplicas))
@@ -1056,15 +1064,16 @@ class MetaSync:
             self._put_all_content(val, self.get_remote_path("configs/%s" % configname[:6]), True)
 
             #temporary --- move this to pPaxos
-            self._put_all_content(configname[:6], self.get_remote_path("config"), True)
+            #self._put_all_content(configname[:6], self.get_remote_path("config"), True)
 
-        # re-init the repo
-        util.empty_file(self.get_head())
-        self._put_all_dir(self.get_remote_path("objects"))
-        self._put_all(self.get_head() , self.get_remote_path(self.get_head_name()))
         prev_master = "." + configname[:6]
+        # do we need both? or shall we put them into a file together.
+        with open(self.get_head(), "w") as f:
+            f.write(prev_master)
         with open(self.path_prev_master, "w") as f:
             f.write(prev_master)
+        self._put_all_dir(self.get_remote_path("objects"))
+        self._put_all(self.get_head() , self.get_remote_path(self.get_head_name()))
 
         from paxos import Proposer
         self.proposer = Proposer(None, self.services, self.get_pPaxos_path(prev_master))
