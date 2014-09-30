@@ -190,7 +190,6 @@ class MetaSync:
         self.path_conf   = self.get_path("config")
         self.path_objs   = self.get_path("objects")
         self.path_master = self.get_path("master")
-        self.path_prev_master = self.get_path("prev_master")
         self.path_head_history = self.get_path("head_history")
         self.options     = opts
 
@@ -375,7 +374,29 @@ class MetaSync:
 
     def get_head_value(self):
         with open(self.get_head()) as f:
+            return f.read().strip().split(".")[0]
+        return None
+
+    def get_head_and_config(self):
+        with open(self.get_head()) as f:
             return f.read().strip()
+        return None
+
+    def get_prev(self):
+        return self.get_path(self.get_prev_name())
+
+    def get_prev_name(self):
+        return "prev_%s" % self.get_client_id()
+
+    def get_prev_value(self):
+        with open(self.get_prev()) as f:
+            return f.read().strip()
+        return None
+
+    #XXX: Cache?
+    def get_config_hash(self):
+        with open(self.get_head()) as f:
+            return f.read().strip().split(".")[1]
         return None
 
     def get_client_id(self):
@@ -979,14 +1000,14 @@ class MetaSync:
         os.mkdir(self.path_objs)
 
         # copy all the heads. 
-        head_clients = filter(lambda x:x.startswith("head_"), srv.listdir(self.get_remote_path("")))
-        for head in head_clients: 
-            with open(self.get_path(head), "w") as f:
-                f.write(srv.get(self.get_remote_path(head)))
+        prev_clients = filter(lambda x:x.startswith("prev_"), srv.listdir(self.get_remote_path("")))
+        for prev in prev_clients: 
+            with open(self.get_path(prev), "w") as f:
+                f.write(srv.get(self.get_remote_path(prev)))
 
         # find out the current master
         # TEMP: use the first one.
-        curmaster = util.read_file(self.get_path(head_clients[0]))
+        curmaster = util.read_file(self.get_path(prev_clients[0]))
         sp = curmaster.split(".")
         master = sp[0]
         seed = sp[1]
@@ -1007,11 +1028,12 @@ class MetaSync:
 
         with open(self.get_head(), "w") as f:
             f.write(curmaster)
-        with open(self.get_path("prev_master"), "w") as f:
+        with open(self.get_prev(), "w") as f:
             f.write(curmaster)
 
         # send my head to remote
         self._put_all(self.get_head(), self.get_remote_path(self.get_head_name()))
+        self._put_all(self.get_prev(), self.get_remote_path(self.get_prev_name()))
         self._join()
 
         if (master):
@@ -1073,10 +1095,12 @@ class MetaSync:
         # do we need both? or shall we put them into a file together.
         with open(self.get_head(), "w") as f:
             f.write(prev_master)
-        with open(self.path_prev_master, "w") as f:
+        with open(self.get_prev(), "w") as f:
             f.write(prev_master)
         self._put_all_dir(self.get_remote_path("objects"))
+        # change to put_content
         self._put_all(self.get_head() , self.get_remote_path(self.get_head_name()))
+        self._put_all(self.get_prev() , self.get_remote_path(self.get_prev_name()))
 
         from paxos import Proposer
         self.proposer = Proposer(None, self.services, self.get_pPaxos_path(prev_master))
@@ -1235,8 +1259,8 @@ class MetaSync:
         newblobs = self.blobstore.get_added_blobs()
 
         # we may need to include pointer for previous version.
-        util.write_file(self.get_head(), root.hv)
-        self.append_history(root.hv)
+        util.write_file(self.get_head(), root.hv + "." + self.get_config_hash())
+        #self.append_history(root.hv)
 
         end = time.time()
         dbg.time("local write: %f" % (end-beg))
@@ -1258,32 +1282,30 @@ class MetaSync:
 
 
     def cmd_push(self):
-        if(not self.lock_master()):
-            raise Exception('locking failed')
-
-        if(not self.check_master_uptodate()):
+        prev = self.get_prev_value()
+        newvalue = self.get_head_and_config()
+        val = self.propose_value(prev, newvalue)
+        if(val != newvalue):
             dbg.err("You should fetch first")
-            self.unlock_master()
             return False
 
-        with open(self.path_master) as f:
-            master_head = f.read().strip()
-        with open(self.get_head()) as f:
-            head = f.read().strip()
-        if(len(master_head) > 0):
-            head_history = self.get_history()
-            if(not master_head in head_history):
-                dbg.err("You should update first")
-                self.unlock_master()
-                return False
+        # with open(self.path_master) as f:
+        #     master_head = f.read().strip()
+        # with open(self.get_head()) as f:
+        #     head = f.read().strip()
+        # if(len(master_head) > 0):
+        #     head_history = self.get_history()
+        #     if(not master_head in head_history):
+        #         dbg.err("You should update first")
+        #         self.unlock_master()
+        #         return False
         # check master is ancestor of the head
-        shutil.copyfile(self.get_path(self.get_head_name()), self.path_master)
-        shutil.copyfile(self.get_path(self.path_head_history), self.path_master_history)
-        self._update_all(self.path_master, self.get_remote_path("master"))
-        self._update_all(self.path_master_history, self.get_remote_path("master_history"))
-        self._join()
 
-        self.unlock_master()
+        shutil.copyfile(self.get_head(), self.get_prev())
+        self._update_all(self.path_prev(), self.get_remote_path(self.get_prev_name()))
+        from paxos import Proposer
+        self.proposer = Proposer(None, self.services, self.get_pPaxos_path(newvalue))
+        self._join()
         return True
 
     def cmd_status(self, unit=BLOB_UNIT):
