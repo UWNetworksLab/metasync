@@ -144,10 +144,13 @@ def _get_conf_nreplicas(default):
 
     # dirty user's input
     print "input the number of replicas (default=2)"
-    replicas = raw_input("> ").strip()
-    if replicas == "":
-        replicas = "2"
-    return replicas
+    while True:
+        replicas = raw_input("> ").strip()
+        if replicas == "":
+            replicas = "2"
+        if replicas.isdigit():
+            return replicas
+        print "input the number"
 
 def _get_conf_encryptkey(default):
     assert type(default) in [types.NoneType, str]
@@ -1011,7 +1014,7 @@ class MetaSync:
         self._put_all(self.get_head(), self.get_remote_path(self.get_head_name()))
         self._join()
 
-        if (master)
+        if (master):
             ret = self.restore_from_master()
         end = time.time()
         dbg.dbg("clone: %ss" % (end-beg))
