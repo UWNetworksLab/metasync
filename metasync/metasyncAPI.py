@@ -684,10 +684,7 @@ class MetaSync:
     def propose_value(self, prev, newvalue):
         from paxos import Proposer
         self.proposer = Proposer(newvalue, self.services, self.get_remote_path("pPaxos/"+prev))
-        if(self.proposer.propose() == newvalue):
-            return True
-        else:
-            return False
+        return self.proposer.propose()
 
     # XXX: should fix
     def lock_master(self):
@@ -1302,7 +1299,7 @@ class MetaSync:
         # check master is ancestor of the head
 
         shutil.copyfile(self.get_head(), self.get_prev())
-        self._update_all(self.path_prev(), self.get_remote_path(self.get_prev_name()))
+        self._update_all(self.get_prev(), self.get_remote_path(self.get_prev_name()))
         from paxos import Proposer
         self.proposer = Proposer(None, self.services, self.get_pPaxos_path(newvalue))
         self._join()
