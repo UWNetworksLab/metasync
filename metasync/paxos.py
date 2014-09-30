@@ -193,6 +193,8 @@ class AcceptorPool(object):
 
   def join(self):
     for acceptor in self.acceptors:
+      acceptor.tasks.put((-1, None, None, None, None))
+    for acceptor in self.acceptors:
       acceptor.join()
 
 class Proposer(object):
