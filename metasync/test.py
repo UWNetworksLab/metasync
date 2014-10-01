@@ -117,9 +117,6 @@ def test_clone(metasync, opts, need_init=True):
     clone = MetaSync(dst)
     clone.cmd_clone("testing", srv, opts.encrypt_key)
 
-    assert os.path.exists(clone.path_master_history)
-    assert os.path.exists(clone.path_head_history)
-
     # compare file side-by-side
     for root, dirs, files in os.walk(clone.path_root):
         for name in files:
@@ -127,9 +124,9 @@ def test_clone(metasync, opts, need_init=True):
             src = metasync.path_root + dst[len(clone.path_root):]
             try:
                 if not filecmp.cmp(dst, src):
-                    assert dst.endswith("config") or dst.endswith("head_history")
+                    assert dst.endswith("config")
             except OSError as e:
-                assert name.startswith("head")
+                assert name.startswith("head") or name.startswith("prev")
 
     return clone
 

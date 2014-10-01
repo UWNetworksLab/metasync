@@ -760,6 +760,9 @@ class MetaSync:
 
         return True
 
+    def get_uptodate_master(self):
+        return None 
+
     def check_master_uptodate(self):
         srv = self.services[0]
         remote_master = srv.get(self.get_remote_path("master"))
@@ -992,7 +995,7 @@ class MetaSync:
         self.namespace = namespace
 
         # create repo directory
-        os.mkdir(namespace)
+        os.mkdir(self.path_root)
         os.mkdir(self.path_meta)
         os.mkdir(self.path_objs)
 
