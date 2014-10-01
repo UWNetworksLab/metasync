@@ -61,7 +61,6 @@ class Worker(Thread):
       try:
         # print '%s: %s %s(%s)' % (ind, services.slug(self.storage), funcname, args)
         func = getattr(self, funcname)
-        dbg.dbg(funcname)
         ret = func(*args, **kargs)
       except Exception as e:
         print(e)
@@ -244,5 +243,5 @@ class Proposer(object):
     return self.pval
 
   def join(self):
-    self.acceptorPool.join()
+    self.threadpool.join()
 
