@@ -168,7 +168,7 @@ def test_uptodate_master(metasync, opts):
         clone.cmd_checkin(pn)
     clone.cmd_push()
 
-    #assert metasync.get_uptodate_master() != None
+    assert metasync.get_uptodate_master() != None
 
 def test_fetch(metasync, opts):
     "test fetching"

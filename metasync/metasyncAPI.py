@@ -779,12 +779,7 @@ class MetaSync:
         pointers.add(self.get_prev_value()) 
 
         assert len(pointers) > 0
-        if len(pointers) == 1:
-            return pointers.pop()
-
-        # find out the current master
-        # TEMP: use the first one.
-        return None 
+        return max(pointers, key=lambda x:int(x.split(".")[2]))
 
     def check_master_uptodate(self):
         srv = self.services[0]
@@ -1276,9 +1271,7 @@ class MetaSync:
         root.store()
         newblobs = self.blobstore.get_added_blobs()
 
-        # we may need to include pointer for previous version.
         util.write_file(self.get_head(), "%s.%s.%d" % (root.hv, self.get_config_hash(), self.get_next_version()))
-        #self.append_history(root.hv)
 
         end = time.time()
         dbg.time("local write: %f" % (end-beg))
