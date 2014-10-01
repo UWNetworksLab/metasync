@@ -691,24 +691,6 @@ class MetaSync:
         self.proposer = Proposer(self.clientid, self.services, self.get_remote_path("pPaxos/"+prev))
         return self.proposer.propose(newvalue)
 
-    # XXX: should fix
-    def lock_master(self):
-        from paxos import Proposer
-        self.proposer = Proposer(self.clientid, self.services, self.get_remote_path("lock"))
-        if(self.proposer.check_locked()):
-            dbg.dbg("already locked")
-            return False
-        if(self.proposer.propose(self.clientid) == self.clientid):
-            return True
-        else:
-            return False
-
-    # XXX: should fix
-    def unlock_master(self):
-        self.proposer.done()
-        self.proposer.join()
-        return True
-
     # need to truncate if history is too long.
     def get_history(self, is_master=False): 
         pn = self.path_master_history if is_master else self.path_head_history
@@ -765,20 +747,21 @@ class MetaSync:
 
         return True
 
-    def get_uptodate_master(self):
+    def get_uptodate_master(self, includeself=True, srv=None):
         # copy all the heads. --- it should have version number. or something to compare against each other.
-        srv = self.services[0]
+        if srv == None:
+            srv = self.services[0]
         prev_clients = filter(lambda x:x.startswith("prev_"), srv.listdir(self.get_remote_path("")))
         pointers = set()
         for prev in prev_clients: 
-            if not prev.endswith(self.clientid):
+            if not includeself or not prev.endswith(self.clientid):
                 with open(self.get_path(prev), "w") as f:
                     pointer = srv.get(self.get_remote_path(prev))
                     pointers.add(pointer)
                     f.write(pointer)
-        pointers.add(self.get_prev_value()) 
+        if includeself:
+            pointers.add(self.get_prev_value()) 
 
-        assert len(pointers) > 0
         return max(pointers, key=lambda x:int(x.split(".")[2]))
 
     def check_master_uptodate(self):
@@ -950,35 +933,30 @@ class MetaSync:
         masterblob = self.blobstore.get_blob(master, "D")
         _update(headblob, masterblob, self.path_root)
 
-
+    def update_head_and_prev(self, master):
+        with open(self.get_prev(), "w") as f:
+            f.write(master)
+        with open(self.get_head(), "w") as f:
+            f.write(master)
 
     def cmd_update(self):
-        # def _update_head():
-        #     shutil.copyfile(self.path_master, self.get_path(self.get_head_name()))
-        #     shutil.copyfile(self.path_master_history, self.path_head_history)
+        master = self.get_uptodate_master()
+        # already up-to-date
+        prev = self.get_prev_value()
+        if (master == prev):
+            return True
 
-        head_history = self.get_history()
-        master_history = self.get_history(True)
-        if(len(master_history) == 0):
-            dbg.err("no master history")
-            return False
-        if(len(head_history) != 0):
-            head = head_history[0]
-            master = master_history[0] 
-            if(head == master): #does not need to update
-                return True
-            if(head_history[0] not in master_history):
-                if(not self.try_merge(head_history, master_history)):
-                    raise Exception('Merge required')
-            else:
-                _update_head()
-            self.update_changed(head, master)
+        head = self.get_head_and_config()
+        # XXX: need to check if non-checked in but modified files.
+        if (head == prev):
+            self.update_changed(head.split(".")[0], master.split(".")[0])
         else:
-            _update_head()
-            self.restore_from_master()
+            ### need to merge
+            raise Exception('Merge required')
+
+        self.update_head_and_prev(master)
         self.blobstore.rootblob = None
         dbg.info("update done %s" % time.ctime())
-        #self.restore_from_master()
         return True
 
     #XXX: Seungyeop is working on it.
@@ -1011,15 +989,7 @@ class MetaSync:
         os.mkdir(self.path_meta)
         os.mkdir(self.path_objs)
 
-        # copy all the heads. 
-        prev_clients = filter(lambda x:x.startswith("prev_"), srv.listdir(self.get_remote_path("")))
-        for prev in prev_clients: 
-            with open(self.get_path(prev), "w") as f:
-                f.write(srv.get(self.get_remote_path(prev)))
-
-        # find out the current master
-        # TEMP: use the first one.
-        curmaster = util.read_file(self.get_path(prev_clients[0]))
+        curmaster = self.get_uptodate_master(False, srv)
         sp = curmaster.split(".")
         master = sp[0]
         seed = sp[1]
