@@ -157,6 +157,8 @@ def test_uptodate_master(metasync, opts):
     "check uptodate master"
     #XXX not yet done
     clone = test_clone(metasync, opts)
+    assert metasync.get_next_version() == 2
+    assert clone.get_next_version() == 2
     assert metasync.get_uptodate_master() != None
 
     file_sizes = [1024, 2048]
@@ -165,8 +167,8 @@ def test_uptodate_master(metasync, opts):
         util.create_random_file(pn, size)
         clone.cmd_checkin(pn)
     clone.cmd_push()
-    
-    assert metasync.get_uptodate_master() != None
+
+    #assert metasync.get_uptodate_master() != None
 
 def test_fetch(metasync, opts):
     "test fetching"

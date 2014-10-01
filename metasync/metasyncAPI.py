@@ -393,6 +393,11 @@ class MetaSync:
             return f.read().strip()
         return None
 
+    def get_next_version(self):
+        with open(self.get_prev()) as f:
+            return int(f.read().strip().split(".")[2]) + 1
+        return None
+
     #XXX: Cache?
     def get_config_hash(self):
         with open(self.get_head()) as f:
@@ -1103,7 +1108,8 @@ class MetaSync:
             #temporary --- move this to pPaxos
             #self._put_all_content(configname[:6], self.get_remote_path("config"), True)
 
-        prev_master = "." + configname[:6]
+        # Format for master: headhash.config[:6].version
+        prev_master = "." + configname[:6] + ".0"
         # do we need both? or shall we put them into a file together.
         with open(self.get_head(), "w") as f:
             f.write(prev_master)
@@ -1271,7 +1277,7 @@ class MetaSync:
         newblobs = self.blobstore.get_added_blobs()
 
         # we may need to include pointer for previous version.
-        util.write_file(self.get_head(), root.hv + "." + self.get_config_hash())
+        util.write_file(self.get_head(), "%s.%s.%d" % (root.hv, self.get_config_hash(), self.get_next_version()))
         #self.append_history(root.hv)
 
         end = time.time()
