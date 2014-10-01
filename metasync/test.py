@@ -153,12 +153,16 @@ def test_checkin_samefile(metasync, opts):
     test_init(metasync, opts)
     metasync.cmd_checkin(os.path.join(metasync.path_root, "file-1024"))
 
+def test_uptodate_master(metasync, opts):
+    "check uptodate master"
+    #XXX not yet done
+    clone = test_clone(metasync, opts)
+
 
 def test_fetch(metasync, opts):
     "test fetching"
 
     clone = test_clone(metasync, opts)
-
 
     file_sizes = [1024, 2048]
     for size in file_sizes:

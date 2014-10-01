@@ -889,12 +889,6 @@ class MetaSync:
             return False
 
         # TODO: change it into comparing between masters
-        if(9654 in self.srvmap):
-            srv = self.srvmap[9654]
-        else:
-            srv = self.services[0]
-        self._get(srv, self.path_master, self.get_remote_path("master"))
-        self._get(srv, self.path_master_history, self.get_remote_path("master_history"))
         self.bstore_download()
 
         self._join()
@@ -941,9 +935,9 @@ class MetaSync:
 
 
     def cmd_update(self):
-        def _update_head():
-            shutil.copyfile(self.path_master, self.get_path(self.get_head_name()))
-            shutil.copyfile(self.path_master_history, self.path_head_history)
+        # def _update_head():
+        #     shutil.copyfile(self.path_master, self.get_path(self.get_head_name()))
+        #     shutil.copyfile(self.path_master_history, self.path_head_history)
 
         head_history = self.get_history()
         master_history = self.get_history(True)
