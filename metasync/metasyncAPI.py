@@ -761,6 +761,24 @@ class MetaSync:
         return True
 
     def get_uptodate_master(self):
+        # copy all the heads. --- it should have version number. or something to compare against each other.
+        srv = self.services[0]
+        prev_clients = filter(lambda x:x.startswith("prev_"), srv.listdir(self.get_remote_path("")))
+        pointers = set()
+        for prev in prev_clients: 
+            if not prev.endswith(self.clientid):
+                with open(self.get_path(prev), "w") as f:
+                    pointer = srv.get(self.get_remote_path(prev))
+                    pointers.add(pointer)
+                    f.write(pointer)
+        pointers.add(self.get_prev_value()) 
+
+        assert len(pointers) > 0
+        if len(pointers) == 1:
+            return pointers.pop()
+
+        # find out the current master
+        # TEMP: use the first one.
         return None 
 
     def check_master_uptodate(self):
