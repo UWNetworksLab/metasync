@@ -167,11 +167,8 @@ class Proposer(object):
     # blocks.remove(self.block)
 
     # init pval & pnum
-    self._init_pnum() 
+    self.pnum = None
     self.pval = None
-
-    # write the initial proposal
-    self.threadpool.submit('set', 0, self.block, '%s,%s' % (self.pnum, self.pval))
 
     while True:
       val = self.propose_once(value)
@@ -186,15 +183,24 @@ class Proposer(object):
 
   def propose_once(self, value):
 
+    if self.pnum is None:
+      self._init_pnum()
+    self.pval = None
+
+    # send the prepare msg
+    msg = '%s,%s,%s' % (self.clientid, self.pnum, self.pval)
+    dbg.dbg('set %s' % msg)
+    self.threadpool.submit('set', 0, self.block, msg)
+
     # read majority blocks
     results = self.threadpool.submit('readBatch', 'majority', self.blockList)
     
-    # first check if any value is accepted
+    # check if any value is committed
     for disk in results:
       for block in disk:
         block = block.strip()
         if block.endswith('#'):
-          pnum, pval = block.split(',')
+          clientid, pnum, pval = block.split(',')
           accepted = pval.rstrip('#')
           return accepted
 
@@ -205,11 +211,15 @@ class Proposer(object):
         block = block.strip()
         if len(block) == 0:
           continue
-        pnum, pval = block.split(',')
+        clientid, pnum, pval = block.split(',')
         pnum = eval(pnum)
+        # check if we need to abandon this round
         if pnum > self.pnum:
-          # abandon this round
           return None
+        # if both proposal have the same pnum, client with smaller id will continue
+        elif pnum == self.pnum and clientid < self.clientid:
+          return None
+
         if candidate is None or pnum > candidate[0]:
           candidate = (pnum, pval)
 
@@ -220,10 +230,22 @@ class Proposer(object):
       self.pval = value
 
     # write the promised proposal
-    self.threadpool.submit('set', 0, self.block, '%s,%s' % (self.pnum, self.pval))
+    msg = '%s,%s,%s' % (self.clientid, self.pnum, self.pval)
+    dbg.dbg('set %s' % msg)
+    self.threadpool.submit('set', 0, self.block, msg)
 
     # read majority blocks
     results = self.threadpool.submit('readBatch', 'majority', self.blockList)
+
+    # check if any value is committed
+    for disk in results:
+      for block in disk:
+        block = block.strip()
+        if block.endswith('#'):
+          clientid, pnum, pval = block.split(',')
+          accepted = pval.rstrip('#')
+          return accepted
+
     # check if accepted
     candidate = None
     for disk in results:
@@ -231,14 +253,17 @@ class Proposer(object):
         block = block.strip()
         if len(block) == 0:
           continue
-        pnum, pval = block.split(',')
+        clientid, pnum, pval = block.split(',')
         pnum = eval(pnum)
         if pnum > self.pnum:
-          # abandon this round
+          return None
+        elif pnum == self.pnum and clientid < self.clientid:
           return None
 
-    # if reach here, the proposal is accepted
-    self.threadpool.submit('set', 0, self.block, '%s,%s#' % (self.pnum, self.pval))
+    # if reach here, the proposal is committed
+    msg = '%s,%s,%s#' % (self.clientid, self.pnum, self.pval)
+    dbg.dbg('set %s' % msg)
+    self.threadpool.submit('set', 0, self.block, msg)
 
     return self.pval
 
