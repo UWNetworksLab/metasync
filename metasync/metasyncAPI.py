@@ -683,8 +683,8 @@ class MetaSync:
 
     def propose_value(self, prev, newvalue):
         from paxos import Proposer
-        self.proposer = Proposer(newvalue, self.services, self.get_remote_path("pPaxos/"+prev))
-        return self.proposer.propose()
+        self.proposer = Proposer(self.clientid, self.services, self.get_remote_path("pPaxos/"+prev))
+        return self.proposer.propose(newvalue)
 
     # XXX: should fix
     def lock_master(self):
@@ -693,7 +693,7 @@ class MetaSync:
         if(self.proposer.check_locked()):
             dbg.dbg("already locked")
             return False
-        if(self.proposer.propose() == self.clientid):
+        if(self.proposer.propose(self.clientid) == self.clientid):
             return True
         else:
             return False

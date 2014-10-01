@@ -120,17 +120,21 @@ class PaxosThreadPool(object):
 
 class Proposer(object):
 
-  def __init__(self, client_id, storages, blockPath, blockListFile):
-    self.id = client_id
-    self.block = blockPath
-    self.blockListFile = blockListFile
+  # block is the file path of this client
+  # blocklist contains all file blocks (include this client)
+  def __init__(self, clientid, storages, block, blockList):
+    self.clientid = clientid
+    self.block = block
+    self.blockList = blockList[:]
+    self.blockList.remove(self.block)
     
     self.pnum = None
     self.pval = None
     self.threadpool = PaxosThreadPool(storages)
 
-    self._init_block()
+    # self._init_block()
 
+  """
   def _get_block_list(self):
     results = self.threadpool.submit('readBlockList', 'majority', self.blockListFile)
     blocks = []
@@ -138,12 +142,13 @@ class Proposer(object):
       if disk is not None:
         blocks = list(set(blocks) | set(disk))
     return blocks
-    
+
   def _init_block(self):
     self.threadpool.submit('create', 0, self.block)
     blocks = self._get_block_list()
     if self.block not in blocks:
       self.threadpool.submit('append', 0, self.blockListFile, self.block)
+  """
 
   def _init_pnum(self):
     self.pnum = random.randint(0, 30)
@@ -152,15 +157,15 @@ class Proposer(object):
     cur = time.time()
     dbg.paxos_time("%s: %s" % (msg, cur-self.starttime))
 
-  def propose(self):
+  def propose(self, value):
     # user should first call check_locked
     self.starttime = time.time()
     random.seed()
     exp_backup = 0.5
 
     # retrieve the block list and remove my block
-    blocks = self._get_block_list()
-    blocks.remove(self.block)
+    # blocks = self._get_block_list()
+    # blocks.remove(self.block)
 
     # init pval & pnum
     self._init_pnum() 
@@ -170,7 +175,7 @@ class Proposer(object):
     self.threadpool.submit('set', 0, self.block, '%s,%s' % (self.pnum, self.pval))
 
     while True:
-      val = self.propose_once(blocks)
+      val = self.propose_once(value)
       if val != None:
         self._debug_time("done")
         return val
@@ -180,10 +185,10 @@ class Proposer(object):
         time.sleep(exp_backup+random.random()) # sleep 1 second, wait for others propose
         exp_backup *= 2
 
-  def propose_once(self, blocks):
+  def propose_once(self, value):
 
     # read majority blocks
-    results = self.threadpool.submit('readBatch', 'majority', blocks)
+    results = self.threadpool.submit('readBatch', 'majority', self.blockList)
     
     # first check if any value is accepted
     for disk in results:
@@ -213,13 +218,13 @@ class Proposer(object):
     if candidate is not None and candidate[1] != 'None':
       self.pval = candidate[1]
     else:
-      self.pval = self.id
+      self.pval = value
 
     # write the promised proposal
     self.threadpool.submit('set', 0, self.block, '%s,%s' % (self.pnum, self.pval))
 
     # read majority blocks
-    results = self.threadpool.submit('readBatch', 'majority', blocks)
+    results = self.threadpool.submit('readBatch', 'majority', self.blockList)
     # check if accepted
     candidate = None
     for disk in results:

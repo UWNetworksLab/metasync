@@ -404,7 +404,7 @@ def test_check_lock(metasync, opts):
     from paxos import Proposer
     proposer = Proposer("1", srvs, lock)
     assert not proposer.check_locked()
-    val = proposer.propose()
+    val = proposer.propose("1")
     assert proposer.check_locked()
     proposer.done()
     assert not proposer.check_locked()
@@ -422,7 +422,7 @@ def test_paxos_latency(metasync, opts):
 
     from paxos import Proposer
     proposer = Proposer("1", srvs_instance, lock)
-    val = proposer.propose()
+    val = proposer.propose("1")
     assert val == "1"
     proposer.done()
     proposer.join()
@@ -441,7 +441,7 @@ def test_paxos(metasync, opts):
     from paxos import Proposer
 
     proposer = Proposer("1", srvs, lock)
-    val = proposer.propose()
+    val = proposer.propose("1")
     assert val == "1"
     proposer.done()
     proposer.join()
@@ -463,7 +463,7 @@ def test_paxos_services(metasync, opts):
     from paxos import Proposer
 
     proposer = Proposer("1", srvs, lock)
-    val = proposer.propose()
+    val = proposer.propose("1")
     assert val == "1"
     proposer.done()
     proposer.join()
@@ -917,7 +917,99 @@ def test_bench_paxos(metasync, opts):
             #if self.proposer.check_locked():
             #    #dbg.dbg("%s already locked" % self.clientid)
             #    return
-            val = self.proposer.propose().strip()
+            val = self.proposer.propose(self.clientid).strip()
+            if val == self.clientid:
+                self.locked = True
+            end = time.time()
+            self.latency = max(end - beg, self.latency)
+                #dbg.dbg("%s locked %s: %s" % (self.clientid, self.path, end-beg))
+                
+        def done(self):
+            if self.locked:
+                self.proposer.done()
+            self.proposer.join()
+
+    client_num = [1, 2, 3, 4, 5]
+    #client_num = [2]
+    backend_list = [["google"], ["dropbox"], ["onedrive"], ["box"], ["baidu"], \
+        ["google", "dropbox", "onedrive"], ["google", "box", "dropbox", "onedrive", "baidu"]]
+    #backend_list = [["google"], ["dropbox", "google"]]
+    # remove test files
+    """
+    for cls in ["google", "box", "dropbox", "onedrive", "baidu"]:
+        srv = services.factory(cls)
+        if services.slug(srv) == 'onedrive':
+            dirpath = '/Public/lock_test'
+        else:
+            dirpath = '/lock_test'
+        if srv.exists(dirpath):
+            srv.rmdir(dirpath)
+    #return
+    """
+
+    result = [['Clients'] + [','.join(x) for x in backend_list]]
+
+    # start to test
+    for num in client_num:
+        row = ['%d clients' % num]
+        for backend in backend_list:
+            dbg.dbg('test paxos for %d clients and %s' % (num, ','.join(backend)))
+            path = '/lock_test/ltest-%d-%d' % (num, len(backend))
+            srvs = map(services.factory, backend)
+            for srv in srvs:
+                srv.reset_log(path)
+            for srv in srvs:
+                srv.init_log(path)
+            clients = []
+            for i in range(num):
+                srvs = map(services.factory, backend)
+                worker = PaxosWorker(srvs, path)
+                clients.append(worker)
+                #dbg.dbg('client %d %s' % (i, worker.clientid))
+            for worker in clients:
+                worker.start()
+            latency = [] 
+            lock_latency = None
+            for worker in clients:
+                worker.join()
+                latency.append(worker.latency)
+                if(worker.locked):
+                    assert lock_latency is None
+                    lock_latency = worker.latency
+            for worker in clients:
+                worker.done()
+            row.append(",".join(map(str,[min(latency), sum(latency)/float(len(latency)), lock_latency, max(latency)])))
+        result.append(row)
+
+    # tabularize
+    for row in result:
+        for e in row:
+            print "%s\t" % e,
+        print
+
+
+def test_bench_disk_paxos(metasync, opts):
+    "test disk paxos"
+    "bencmark latency of paxos with backends"
+
+    from disk_paxos import Proposer
+    from threading import Thread
+
+    class PaxosWorker(Thread):
+        def __init__(self, services, block, blockList):
+            Thread.__init__(self)
+            self.clientid = str(util.gen_uuid())
+            self.block = block
+            self.proposer = Proposer(self.clientid, services, block, blockList)
+            self.locked = False
+            self.latency = 0
+
+        def run(self):
+            beg = time.time()
+            #if self.proposer.check_locked():
+            #    #dbg.dbg("%s already locked" % self.clientid)
+            #    return
+            val = self.proposer.propose(self.clientid).strip()
             if val == self.clientid:
                 self.locked = True
             end = time.time()

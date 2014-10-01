@@ -38,12 +38,12 @@ class Message:
   ACCEPT = 1
   DONE = 3
     
-  def __init__(self, timestamp, msg_type, client_id, pnum=None, pval=None):
+  def __init__(self, timestamp, msg_type, clientid, pnum=None, pval=None):
     self.ts = timestamp
     self.type = msg_type
     self.pnum = pnum
     self.pval = pval
-    self.client_id = client_id
+    self.clientid = clientid
 
 def parse_msg(log):
   ts = log['time']
@@ -60,10 +60,10 @@ def parse_msg(log):
   else: assert False
 
 class Acceptor(Thread):
-  def __init__(self, client_id, storage, path, results):
+  def __init__(self, clientid, storage, path, results):
     Thread.__init__(self)
     
-    self.client_id = client_id
+    self.clientid = clientid
     self.storage = storage
     self.path = path
     self.clock = None
@@ -95,14 +95,14 @@ class Acceptor(Thread):
   def _commit_msg(self, msg):
     msg = parse_msg(msg)
     if msg.type == Message.PREPARE:
-      if msg.pnum > self.promised or (msg.pnum == self.promised and msg.client_id > self.promised_id):
+      if msg.pnum > self.promised or (msg.pnum == self.promised and msg.clientid > self.promised_id):
         self.promised = msg.pnum
-        self.promised_id = msg.client_id
+        self.promised_id = msg.clientid
         self.promised_ts = msg.ts
     elif msg.type == Message.ACCEPT:
-      if msg.pnum > self.promised or (msg.pnum == self.promised and msg.client_id >= self.promised_id): # is it correct?
+      if msg.pnum > self.promised or (msg.pnum == self.promised and msg.clientid >= self.promised_id): # is it correct?
         self.accepted = (msg.pnum, msg.pval)
-        self.accepted_id = msg.client_id
+        self.accepted_id = msg.clientid
         self.accepted_ts = msg.ts
     elif msg.type == Message.DONE:
         self.reset()
@@ -154,13 +154,13 @@ class Acceptor(Thread):
         self.tasks.task_done()
 
 class AcceptorPool(object):
-  def __init__(self, client_id, storages, path):
+  def __init__(self, clientid, storages, path):
     self.cmdId = 0
     self.num_acceptors = len(storages)
     self.results = Queue(self.num_acceptors*10)
     self.acceptors = []
     for storage in storages:
-      acc = Acceptor(client_id, storage, path, self.results)
+      acc = Acceptor(clientid, storage, path, self.results)
       storage.init_log(path)
       self.acceptors.append(acc)
 
@@ -199,11 +199,11 @@ class AcceptorPool(object):
 
 class Proposer(object):
 
-  def __init__(self, client_id, storages, path):
-    self.id = client_id 
+  def __init__(self, clientid, storages, path):
+    self.clientid = clientid 
     self.pnum = None
     self.pval = None
-    self.acceptorPool = AcceptorPool(client_id, storages, path)
+    self.acceptorPool = AcceptorPool(clientid, storages, path)
     random.seed(time.time())
     #dbg
 
@@ -215,24 +215,25 @@ class Proposer(object):
     dbg.paxos_time("%s: %s" % (msg, cur-self.starttime))
 
 
-  def propose(self):
+  def propose(self, value):
     # user should first call check_locked
     self.starttime = time.time()
     exp_backup = 0.5
     import random
     random.seed()
     while True:
-      val = self.propose_once()
+      val = self.propose_once(value)
       if val != None:
         self._debug_time("done")
         return val
       else:
         self._debug_time("another round")
+        self.pnum += MAX_CLIENTS
         time.sleep(exp_backup+random.random()) # sleep 1 second, wait for others propose
         exp_backup *= 2
 
   def done(self):
-    self.acceptorPool.submit('send', False, 'done %s,%s' % (self.id, self.pnum)) 
+    self.acceptorPool.submit('send', False, 'done %s,%s' % (self.clientid, self.pnum)) 
     self.pnum = None
     self.pval = None
 
@@ -261,7 +262,7 @@ class Proposer(object):
         return val 
     return None
 
-  def propose_once(self):
+  def propose_once(self, value):
 
     if not self.pnum:
       self._init_pnum()
@@ -270,7 +271,7 @@ class Proposer(object):
     # assume call check_locked first before call propose
 
     # send prepare messages to all acceptors
-    msg = "prepare %s,%s" % (self.id, self.pnum)
+    msg = "prepare %s,%s" % (self.clientid, self.pnum)
     self.acceptorPool.submit('send', False, msg)
     self._debug_time("sent prepare")
 
@@ -300,12 +301,12 @@ class Proposer(object):
         if (not highest_proposal) or proposal[0] > highest_proposal[0]:
           highest_proposal = proposal
       if not highest_proposal:
-        self.pval = self.id
+        self.pval = value
       else:
         self.pval = highest_proposal[1]
       
       # send accept messages
-      msg = "accept %s,%s,%s" % (self.id, self.pnum, self.pval)
+      msg = "accept %s,%s,%s" % (self.clientid, self.pnum, self.pval)
       self.acceptorPool.submit('send', False, msg)
       self._debug_time("sent accept")
 
@@ -317,6 +318,4 @@ class Proposer(object):
       if ret != None:
         return ret
       
-    self.pnum += MAX_CLIENTS
-    #Debug.dbg('new proposal num %d' % self.pnum)
     return None
