@@ -216,7 +216,7 @@ class DropboxClient(object):
         except ErrorResponse as e:
             raise e
 
-    def put_file(self, full_path, file_obj, overwrite=False, parent_rev=None):
+    def put_file(self, full_path, file_obj, overwrite=False, parent_rev=None, autorename=True):
         """Upload a file.
 
         A typical use case would be as follows::
@@ -281,6 +281,7 @@ class DropboxClient(object):
 
         params = {
             'overwrite': bool(overwrite),
+            'autorename': bool(autorename),
             }
 
         if parent_rev is not None:

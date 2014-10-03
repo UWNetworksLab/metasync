@@ -10,6 +10,7 @@ from dropbox.client import DropboxClient, DropboxOAuth2FlowNoRedirect
 import dbg
 import util
 from base import *
+from error import *
 
 import getpass
 from selenium import webdriver 
@@ -151,9 +152,16 @@ class DropboxAPI(StorageAPI, AppendOnlyLog):
 
     Returns: None
     """
+    from dropbox.rest import ErrorResponse
     strobj = StringIO(content)
-    #metadata = self.client.put_file(path, strobj)
-    metadata = self.client.put_file(path, strobj, overwrite=True)
+
+    try:
+      metadata = self.client.put_file(path, strobj, overwrite=False, autorename=False)
+    except ErrorResponse as e:
+      if e.status == 409:
+        raise ItemAlreadyExists(e.status, e.reason)
+      else:
+        raise APIError(e.status, e.reason)
     return True
 
   def putdir(self, path):
