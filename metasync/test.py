@@ -1053,7 +1053,7 @@ def test_bench_disk_paxos(metasync, opts):
             srvs = map(services.factory, backend)
     
             for num_prop in range(1, num + 1):
-                dbg.dbg('test paxos for %d/%d clients and %s' % (num_prop, num, ','.join(backend)))
+                dbg.info('test paxos for %d/%d clients and %s' % (num_prop, num, ','.join(backend)))
 
                 # initialize all disk blocks
                 blockList = []
