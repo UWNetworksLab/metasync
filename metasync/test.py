@@ -1049,45 +1049,48 @@ def test_bench_disk_paxos(metasync, opts):
 
     # start to test
     for num in client_num:
-        row = ['%d clients' % num]
         for backend in backend_list:
-            dbg.dbg('test paxos for %d clients and %s' % (num, ','.join(backend)))
             srvs = map(services.factory, backend)
-            
-            # initialize all disk blocks
-            blockList = []
-            for i in range(num):
-                path = '/diskpaxos/client%d' % i
-                for srv in srvs:
-                    if not srv.exists(path):
-                        srv.put(path, '')
-                    else:
-                        srv.update(path, '')
-                blockList.append(path)
+    
+            for num_prop in range(1, num + 1):
+                dbg.dbg('test paxos for %d/%d clients and %s' % (num_prop, num, ','.join(backend)))
 
-            clients = []
-            for i in range(num):
-                srvs = map(services.factory, backend)
-                worker = PaxosWorker(srvs, blockList[i], blockList)
-                clients.append(worker)
-                #dbg.dbg('client %d %s' % (i, worker.clientid))
+                # initialize all disk blocks
+                blockList = []
+                for i in range(num):
+                    path = '/diskpaxos/client%d' % i
+                    for srv in srvs:
+                        if not srv.exists(path):
+                            srv.put(path, '')
+                        else:
+                            srv.update(path, '')
+                    blockList.append(path)
 
-            for worker in clients:
-                worker.start()
+                clients = []
+                for i in range(num_prop):
+                    storages = map(services.factory, backend)
+                    worker = PaxosWorker(storages, blockList[i], blockList)
+                    clients.append(worker)
+                    #dbg.dbg('client %d %s' % (i, worker.clientid))
 
-            latency = [] 
-            lock_latency = None
-            for worker in clients:
-                worker.join()
-                latency.append(worker.latency)
-                if(worker.locked):
-                    assert lock_latency is None
-                    lock_latency = worker.latency
+                for worker in clients:
+                    worker.start()
 
-            for worker in clients:
-                worker.done()
-            row.append(",".join(map(str,[min(latency), sum(latency)/float(len(latency)), lock_latency, max(latency)])))
-        result.append(row)
+                latency = [] 
+                lock_latency = None
+                for worker in clients:
+                    worker.join()
+                    latency.append(worker.latency)
+                    if(worker.locked):
+                        assert lock_latency is None
+                        lock_latency = worker.latency
+
+                for worker in clients:
+                    worker.done()
+
+                row = ['%d/%d clients' % (num_prop, num)]
+                row.append(",".join(map(str,[min(latency), sum(latency)/float(len(latency)), lock_latency, max(latency)])))
+                result.append(row)
 
     # tabularize
     for row in result:
