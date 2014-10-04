@@ -182,10 +182,6 @@ class BaiduAPI(StorageAPI, AppendOnlyLog):
 
   def _check_error(self, response):
     if not response.ok:
-      print response.status_code
-      print response.text
-      print response.reason
-      print response.raw
       err = json.loads(response.text)
       if response.status_code == httplib.BAD_REQUEST and err['error_code'] == 31061:
           exception = ItemAlreadyExists
