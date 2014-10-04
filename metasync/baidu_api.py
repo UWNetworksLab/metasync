@@ -182,6 +182,10 @@ class BaiduAPI(StorageAPI, AppendOnlyLog):
 
   def _check_error(self, response):
     if not response.ok:
+      print response.status_code
+      print response.text
+      print response.reason
+      print response.raw
       err = json.loads(response.text)
       if response.status_code == httplib.BAD_REQUEST and err['error_code'] == 31061:
           exception = ItemAlreadyExists
@@ -259,6 +263,7 @@ class BaiduAPI(StorageAPI, AppendOnlyLog):
       'method': 'upload',
       'path': path,
     }
+    if len(content) == 0: content += '\0'
     strobj = StringIO(content)
 
     resp = self._request('POST', url, params=params, files={'file': strobj})
@@ -272,6 +277,7 @@ class BaiduAPI(StorageAPI, AppendOnlyLog):
       'path': path,
       'ondup': 'overwrite',
     }
+    if len(content) == 0: content += '\0'
     strobj = StringIO(content)
 
     resp = self._request('POST', url, params=params, files={'file': strobj})
@@ -303,7 +309,6 @@ class BaiduAPI(StorageAPI, AppendOnlyLog):
 
   def rmdir(self, path):
     self.rm(path)
-  
 
   def __msg_index(self, fn):
     return eval(fn[3:])

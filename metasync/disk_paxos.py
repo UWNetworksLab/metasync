@@ -2,6 +2,7 @@
 
 import time
 import random
+import traceback
 
 import services
 from threading import Thread
@@ -43,8 +44,9 @@ class Worker(Thread):
     ret = []
     for path in pathlist:
       try:
-        content = self.storage.get(path)
-        ret.append(content)
+        content = self.storage.get(path).strip(' \0')
+        if len(content) > 0:
+          ret.append(content)
       except ItemDoesNotExist:
         pass
     return ret
@@ -62,8 +64,8 @@ class Worker(Thread):
         # print '%s: %s %s(%s)' % (ind, services.slug(self.storage), funcname, args)
         func = getattr(self, funcname)
         ret = func(*args, **kargs)
-      except Exception as e:
-        print(e)
+      except Exception:
+        traceback.print_exc()
       if sync: self.results.put((ind, ret))
       self.tasks.task_done()
 
@@ -208,9 +210,6 @@ class Proposer(object):
     candidate = None
     for disk in results:
       for block in disk:
-        block = block.strip()
-        if len(block) == 0:
-          continue
         clientid, pnum, pval = block.split(',')
         pnum = eval(pnum)
         # check if we need to abandon this round
@@ -240,7 +239,6 @@ class Proposer(object):
     # check if any value is committed
     for disk in results:
       for block in disk:
-        block = block.strip()
         if block.endswith('#'):
           clientid, pnum, pval = block.split(',')
           accepted = pval.rstrip('#')
@@ -250,9 +248,6 @@ class Proposer(object):
     candidate = None
     for disk in results:
       for block in disk:
-        block = block.strip()
-        if len(block) == 0:
-          continue
         clientid, pnum, pval = block.split(',')
         pnum = eval(pnum)
         if pnum > self.pnum:

@@ -1025,9 +1025,6 @@ def test_bench_disk_paxos(metasync, opts):
 
         def run(self):
             beg = time.time()
-            #if self.proposer.check_locked():
-            #    #dbg.dbg("%s already locked" % self.clientid)
-            #    return
             val = self.proposer.propose(self.clientid).strip()
             if val == self.clientid:
                 self.locked = True
@@ -1042,8 +1039,6 @@ def test_bench_disk_paxos(metasync, opts):
     client_num = [1, 2, 3, 4, 5]
     backend_list = [["google"], ["dropbox"], ["onedrive"], ["box"], ["baidu"], \
         ["google", "dropbox", "onedrive"], ["google", "box", "dropbox", "onedrive", "baidu"]]
-    # backend_list = [["google"], ["dropbox", "google"]]
-    # remove test files
 
     result = [['Clients'] + [','.join(x) for x in backend_list]]
 
