@@ -1026,11 +1026,11 @@ def test_bench_disk_paxos(metasync, opts):
         def run(self):
             beg = time.time()
             val = self.proposer.propose(self.clientid).strip()
+            end = time.time()
+            self.latency = max(end - beg, self.latency)
             if val == self.clientid:
                 self.locked = True
                 dbg.dbg("Proposal result: %s" % val)
-            end = time.time()
-            self.latency = max(end - beg, self.latency)
             # dbg.dbg("%s locked %s: %s" % (self.clientid, self.path, end-beg))
                 
         def done(self):
@@ -1038,7 +1038,7 @@ def test_bench_disk_paxos(metasync, opts):
 
     client_num = [1, 2, 3, 4, 5]
     backend_list = [["google"], ["dropbox"], ["onedrive"], ["box"], ["baidu"], \
-        ["google", "dropbox", "onedrive"], ["google", "box", "dropbox", "onedrive", "baidu"]]
+        ["google", "dropbox", "onedrive"], ["google", "box", "dropbox", "onedrive"]]
 
     result = [['Clients'] + [','.join(x) for x in backend_list]]
 
