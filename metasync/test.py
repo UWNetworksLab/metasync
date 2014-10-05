@@ -1040,7 +1040,7 @@ def test_bench_disk_paxos(metasync, opts):
     backend_list = [["google"], ["dropbox"], ["onedrive"], ["box"], ["baidu"], \
         ["google", "dropbox", "onedrive"], ["google", "box", "dropbox", "onedrive"]]
 
-    result = [['Clients'] + [','.join(x) for x in backend_list]]
+    results = [['Clients'] + [','.join(x) for x in backend_list]]
 
     # start to test
     for num in client_num:
@@ -1084,13 +1084,13 @@ def test_bench_disk_paxos(metasync, opts):
                 for worker in clients:
                     worker.done()
                 
-                result = ",".join(map(str,[min(latency), sum(latency)/float(len(latency)), lock_latency, max(latency)]))
-                dbg.info("Result: %s" % result)
-                row.append(result)
-            result.append(row)
+                summary = ",".join(map(str,[min(latency), sum(latency)/float(len(latency)), lock_latency, max(latency)]))
+                dbg.info("Result: %s" % summary)
+                row.append(summary)
+            results.append(row)
 
     # tabularize
-    for row in result:
+    for row in results:
         for e in row:
             print "%s\t" % e,
         print
