@@ -1044,11 +1044,12 @@ def test_bench_disk_paxos(metasync, opts):
 
     # start to test
     for num in client_num:
-        for backend in backend_list:
-            srvs = map(services.factory, backend)
-    
-            for num_prop in range(1, num + 1):
-                dbg.info('test paxos for %d/%d clients and %s' % (num_prop, num, ','.join(backend)))
+        for num_prop in range(1, num + 1):
+            row = ['%d/%d clients' % (num_prop, num)]
+            for backend in backend_list:
+                srvs = map(services.factory, backend)
+            
+                dbg.info('Test paxos for %d/%d clients and %s' % (num_prop, num, ','.join(backend)))
 
                 # initialize all disk blocks
                 blockList = []
@@ -1082,10 +1083,11 @@ def test_bench_disk_paxos(metasync, opts):
 
                 for worker in clients:
                     worker.done()
-
-                row = ['%d/%d clients' % (num_prop, num)]
-                row.append(",".join(map(str,[min(latency), sum(latency)/float(len(latency)), lock_latency, max(latency)])))
-                result.append(row)
+                
+                result = ",".join(map(str,[min(latency), sum(latency)/float(len(latency)), lock_latency, max(latency)]))
+                dbg.info("Result: %s" % result)
+                row.append(result)
+            result.append(row)
 
     # tabularize
     for row in result:
