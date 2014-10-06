@@ -27,7 +27,6 @@ class Worker(Thread):
       self.storage.put(path, '')
 
   def append(self, path, content):
-    # print '%s append %s: %s' % (services.slug(self.storage), path, content)
     self.storage.append(path, content)
 
   def readBlockList(self, path):
@@ -59,13 +58,16 @@ class Worker(Thread):
         self.tasks.task_done()
         break
       try:
-        # print '%s: %s %s(%s)' % (ind, services.slug(self.storage), funcname, args)
         func = getattr(self, funcname)
         ret = func(*args, **kargs)
       except Exception:
         traceback.print_exc()
       if sync: self.results.put((ind, ret))
       self.tasks.task_done()
+
+  def join(self):
+    self.tasks.put( (-1, None, None, None, None) )
+    super(Worker, self).join()
 
 class PaxosThreadPool(object):
   def __init__(self, storages):
@@ -112,8 +114,6 @@ class PaxosThreadPool(object):
     return results
 
   def join(self):
-    for worker in self.workers:
-      worker.tasks.put((-1, None, None, None, None))
     for worker in self.workers:
       worker.join()
 
@@ -259,23 +259,25 @@ class Proposer(object):
 
 class DiskPaxosWorker(Thread):
   def __init__(self, services, block, blockList):
-      Thread.__init__(self)
-      self.clientid = str(util.gen_uuid())
-      dbg.dbg("Client %s" % self.clientid)
-      self.block = block
-      self.proposer = Proposer(self.clientid, services, block, blockList)
-      self.locked = False
-      self.latency = 0
+    Thread.__init__(self)
+    self.clientid = str(util.gen_uuid())
+    dbg.dbg("Client %s" % self.clientid)
+    self.proposer = Proposer(self.clientid, services, block, blockList)
+    self.daemon = True
+    self.latency = 0
+    self.master = False
 
   def run(self):
-      beg = time.time()
-      val = self.proposer.propose(self.clientid).strip()
-      end = time.time()
-      self.latency = max(end - beg, self.latency)
-      if val == self.clientid:
-          self.locked = True
-          dbg.dbg("Proposal result: %s" % val)
-      # dbg.dbg("%s locked %s: %s" % (self.clientid, self.path, end-beg))
+    beg = time.time()
+    val = self.proposer.propose(self.clientid).strip()
+    end = time.time()
+    self.latency = max(end - beg, self.latency)
+    if val == self.clientid:
+        self.master = True
+        dbg.dbg("Proposal result: %s" % val)
+    # dbg.dbg("%s locked %s: %s" % (self.clientid, self.path, end-beg))
           
-  def done(self):
-      self.proposer.join()
+  def join(self):
+    super(DiskPaxosWorker, self).join()
+    self.proposer.join()
+    

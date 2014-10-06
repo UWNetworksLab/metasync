@@ -407,27 +407,6 @@ def test_remapping(metasync, opts):
     added, removed = detmap.get_remapping(lst)
     assert len(removed[3]) == len(lst3)
 
-
-def test_check_lock(metasync, opts):
-    "test check lock lock"
-    lock = 'locktest/ltest'
-
-    test_init(metasync, opts)
-    srvs = metasync.services
-
-    for srv in srvs:
-        if not srv.exists(lock):
-            srv.put(lock, '')
-
-    from paxos import Proposer
-    proposer = Proposer("1", srvs, lock)
-    assert not proposer.check_locked()
-    val = proposer.propose("1")
-    assert proposer.check_locked()
-    proposer.done()
-    assert not proposer.check_locked()
-    proposer.join()
-
 def test_paxos_latency(metasync, opts):
     lock = "locktest/ltest_latency"
     import services
@@ -442,7 +421,6 @@ def test_paxos_latency(metasync, opts):
     proposer = Proposer("1", srvs_instance, lock)
     val = proposer.propose("1")
     assert val == "1"
-    proposer.done()
     proposer.join()
 
 def test_paxos(metasync, opts):
@@ -461,7 +439,6 @@ def test_paxos(metasync, opts):
     proposer = Proposer("1", srvs, lock)
     val = proposer.propose("1")
     assert val == "1"
-    proposer.done()
     proposer.join()
 
 def test_paxos_services(metasync, opts):
@@ -483,7 +460,6 @@ def test_paxos_services(metasync, opts):
     proposer = Proposer("1", srvs, lock)
     val = proposer.propose("1")
     assert val == "1"
-    proposer.done()
     proposer.join()
     #     XXX. invoke python threads or async
     #       - srv.sid()
@@ -943,8 +919,6 @@ def test_bench_paxos(metasync, opts):
                 #dbg.dbg("%s locked %s: %s" % (self.clientid, self.path, end-beg))
                 
         def done(self):
-            if self.locked:
-                self.proposer.done()
             self.proposer.join()
 
     client_num = [1, 2, 3, 4, 5]
@@ -995,7 +969,7 @@ def test_bench_paxos(metasync, opts):
                     assert lock_latency is None
                     lock_latency = worker.latency
             for worker in clients:
-                worker.done()
+                worker.join()
             row.append(",".join(map(str,[min(latency), sum(latency)/float(len(latency)), lock_latency, max(latency)])))
         result.append(row)
 
@@ -1012,8 +986,7 @@ def test_bench_disk_paxos(metasync, opts):
 
     from disk_paxos import DiskPaxosWorker
 
-    # client_num = [1, 2, 3, 4, 5]
-    client_num = [4, 5]
+    client_num = [1, 2, 3, 4, 5]
     backend_list = [["google"], ["dropbox"], ["onedrive"], ["box"], ["baidu"], \
         ["google", "dropbox", "onedrive"], ["google", "box", "dropbox", "onedrive"]]
 
@@ -1050,18 +1023,18 @@ def test_bench_disk_paxos(metasync, opts):
                     worker.start()
 
                 latency = [] 
-                lock_latency = None
+                master_latency = None
                 for worker in clients:
                     worker.join()
                     latency.append(worker.latency)
-                    if(worker.locked):
-                        assert lock_latency is None
-                        lock_latency = worker.latency
+                    if (worker.master):
+                        assert master_latency is None
+                        master_latency = worker.latency
 
                 for worker in clients:
-                    worker.done()
+                    worker.join()
                 
-                summary = ",".join(map(str,[min(latency), sum(latency)/float(len(latency)), lock_latency, max(latency)]))
+                summary = ",".join(map(str,[min(latency), sum(latency)/float(len(latency)), master_latency, max(latency)]))
                 dbg.info("Result: %s" % summary)
                 row.append(summary)
             results.append(row)
