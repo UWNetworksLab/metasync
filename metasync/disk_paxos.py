@@ -261,11 +261,10 @@ class DiskPaxosWorker(Thread):
   def __init__(self, services, block, blockList):
     Thread.__init__(self)
     self.clientid = str(util.gen_uuid())
-    dbg.dbg("Client %s" % self.clientid)
     self.proposer = Proposer(self.clientid, services, block, blockList)
-    self.daemon = True
     self.latency = 0
     self.master = False
+    dbg.dbg("Client %s" % self.clientid)
 
   def run(self):
     beg = time.time()
@@ -274,8 +273,7 @@ class DiskPaxosWorker(Thread):
     self.latency = max(end - beg, self.latency)
     if val == self.clientid:
         self.master = True
-        dbg.dbg("Proposal result: %s" % val)
-    # dbg.dbg("%s locked %s: %s" % (self.clientid, self.path, end-beg))
+        dbg.dbg("Proposal result: %s (%s)" % (val, self.latency))
           
   def join(self):
     super(DiskPaxosWorker, self).join()

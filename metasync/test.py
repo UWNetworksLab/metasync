@@ -894,89 +894,63 @@ def test_mv(metasync, opts):
 def test_bench_paxos(metasync, opts):
     "bencmark latency of paxos with backends"
 
-    from paxos import Proposer
-    from threading import Thread
+    def new_index(srv, folder, prefix):
+        if not srv.exists(folder):
+            return 0
+        files = srv.listdir(folder)
+        cnt = 0
+        for fn in files:
+            if fn.startswith(prefix):
+                cnt += 1
+        return cnt
 
-    class PaxosWorker(Thread):
-        def __init__(self, services, path):
-            Thread.__init__(self)
-            self.clientid = str(util.gen_uuid())
-            self.path = path
-            self.proposer = Proposer(self.clientid, services, path)
-            self.locked = False
-            self.latency = 0
-
-        def run(self):
-            beg = time.time()
-            #if self.proposer.check_locked():
-            #    #dbg.dbg("%s already locked" % self.clientid)
-            #    return
-            val = self.proposer.propose(self.clientid).strip()
-            if val == self.clientid:
-                self.locked = True
-            end = time.time()
-            self.latency = max(end - beg, self.latency)
-                #dbg.dbg("%s locked %s: %s" % (self.clientid, self.path, end-beg))
-                
-        def done(self):
-            self.proposer.join()
+    from paxos import PPaxosWorker
 
     client_num = [1, 2, 3, 4, 5]
-    #client_num = [2]
     backend_list = [["google"], ["dropbox"], ["onedrive"], ["box"], ["baidu"], \
         ["google", "dropbox", "onedrive"], ["google", "box", "dropbox", "onedrive", "baidu"]]
-    #backend_list = [["google"], ["dropbox", "google"]]
-    # remove test files
-    """
-    for cls in ["google", "box", "dropbox", "onedrive", "baidu"]:
-        srv = services.factory(cls)
-        if services.slug(srv) == 'onedrive':
-            dirpath = '/Public/lock_test'
-        else:
-            dirpath = '/lock_test'
-        if srv.exists(dirpath):
-            srv.rmdir(dirpath)
-    #return
-    """
-
-    result = [['Clients'] + [','.join(x) for x in backend_list]]
+    results = [['Clients'] + [','.join(x) for x in backend_list]]
 
     # start to test
     for num in client_num:
-        row = ['%d clients' % num]
+        row = ['%d clients' % (num)]
         for backend in backend_list:
-            dbg.dbg('test paxos for %d clients and %s' % (num, ','.join(backend)))
-            path = '/lock_test/ltest-%d-%d' % (num, len(backend))
+            dbg.info('Test paxos for %d clients and %s' % (num, ','.join(backend)))
             srvs = map(services.factory, backend)
-            for srv in srvs:
-                srv.reset_log(path)
+            # init log file
+            prefix = 'test-%d-%d' % (num , len(backend))
+            index = new_index(srvs[0], '/ppaxos', prefix)
+            path = '/ppaxos/%s.%d' % (prefix, index)
+            dbg.info(path)
             for srv in srvs:
                 srv.init_log(path)
+
             clients = []
             for i in range(num):
                 srvs = map(services.factory, backend)
-                worker = PaxosWorker(srvs, path)
+                worker = PPaxosWorker(srvs, path)
                 clients.append(worker)
-                #dbg.dbg('client %d %s' % (i, worker.clientid))
             for worker in clients:
                 worker.start()
-            latency = [] 
-            lock_latency = None
+            latency = []
+            master_latency = None
             for worker in clients:
                 worker.join()
                 latency.append(worker.latency)
-                if(worker.locked):
-                    assert lock_latency is None
-                    lock_latency = worker.latency
+                if (worker.master):
+                    assert master_latency is None
+                    master_latency = worker.latency
             for worker in clients:
                 worker.join()
-            row.append(",".join(map(str,[min(latency), sum(latency)/float(len(latency)), lock_latency, max(latency)])))
-        result.append(row)
+            summary = ",".join(map(str,[min(latency), sum(latency)/float(len(latency)), master_latency, max(latency)]))
+            dbg.info("Result: %s" % summary)
+            row.append(summary)
+        results.append(row)
 
     # tabularize
-    for row in result:
+    for row in results:
         for e in row:
-            print "%s\t" % e,
+            print "%s \t" % e,
         print
 
 
@@ -998,9 +972,7 @@ def test_bench_disk_paxos(metasync, opts):
             row = ['%d/%d clients' % (num_prop, num)]
             for backend in backend_list:
                 srvs = map(services.factory, backend)
-            
                 dbg.info('Test paxos for %d/%d clients and %s' % (num_prop, num, ','.join(backend)))
-
                 # initialize all disk blocks
                 blockList = []
                 for i in range(num):
@@ -1018,10 +990,9 @@ def test_bench_disk_paxos(metasync, opts):
                     worker = DiskPaxosWorker(storages, blockList[i], blockList)
                     clients.append(worker)
                     #dbg.dbg('client %d %s' % (i, worker.clientid))
-
                 for worker in clients:
                     worker.start()
-
+                    
                 latency = [] 
                 master_latency = None
                 for worker in clients:
@@ -1030,7 +1001,6 @@ def test_bench_disk_paxos(metasync, opts):
                     if (worker.master):
                         assert master_latency is None
                         master_latency = worker.latency
-
                 for worker in clients:
                     worker.join()
                 
@@ -1042,7 +1012,7 @@ def test_bench_disk_paxos(metasync, opts):
     # tabularize
     for row in results:
         for e in row:
-            print "%s\t" % e,
+            print "%s \t" % e,
         print
 
 def test_sid(metasync, opts):
