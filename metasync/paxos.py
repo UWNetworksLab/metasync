@@ -157,7 +157,7 @@ class Proposer(object):
     while True:
       val = self.propose_once(value)
       if val != None:
-        self._debug_time("done")
+        self._debug_time("done: %s" % val)
         return val
       else:
         self._debug_time("another round")
@@ -178,7 +178,7 @@ class Proposer(object):
     # send prepare messages
     msg = "%s,%s,%s" % (self.clientid, self.pnum, self.pval)
     self.acceptorPool.submit('send', False, msg)
-    self._debug_time("sent prepare")
+    self._debug_time("sent prepare: %s" % msg)
 
     # update acceptors and wait for majority
     accList = self.acceptorPool.submit('update', True)
@@ -208,7 +208,7 @@ class Proposer(object):
      # send accept messages
     msg = "%s,%s,%s" % (self.clientid, self.pnum, self.pval)
     self.acceptorPool.submit('send', False, msg)
-    self._debug_time("sent accept")
+    self._debug_time("sent accept: %s" % msg)
 
     # update acceptors and wait for majority
     accList = self.acceptorPool.submit('update', True)
@@ -227,6 +227,7 @@ class Proposer(object):
     # commit the proposal
     msg = "%s#" % self.pval
     self.acceptorPool.submit('send', False, msg)
+    self._debug_time("sent commit: %s" % msg)
 
     return self.pval
 
