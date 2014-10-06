@@ -1010,33 +1010,10 @@ def test_bench_disk_paxos(metasync, opts):
     "test disk paxos"
     "bencmark latency of paxos with backends"
 
-    from disk_paxos import Proposer
-    from threading import Thread
+    from disk_paxos import DiskPaxosWorker
 
-    class PaxosWorker(Thread):
-        def __init__(self, services, block, blockList):
-            Thread.__init__(self)
-            self.clientid = str(util.gen_uuid())
-            dbg.dbg("Client %s" % self.clientid)
-            self.block = block
-            self.proposer = Proposer(self.clientid, services, block, blockList)
-            self.locked = False
-            self.latency = 0
-
-        def run(self):
-            beg = time.time()
-            val = self.proposer.propose(self.clientid).strip()
-            end = time.time()
-            self.latency = max(end - beg, self.latency)
-            if val == self.clientid:
-                self.locked = True
-                dbg.dbg("Proposal result: %s" % val)
-            # dbg.dbg("%s locked %s: %s" % (self.clientid, self.path, end-beg))
-                
-        def done(self):
-            self.proposer.join()
-
-    client_num = [1, 2, 3, 4, 5]
+    # client_num = [1, 2, 3, 4, 5]
+    client_num = [4, 5]
     backend_list = [["google"], ["dropbox"], ["onedrive"], ["box"], ["baidu"], \
         ["google", "dropbox", "onedrive"], ["google", "box", "dropbox", "onedrive"]]
 
@@ -1065,7 +1042,7 @@ def test_bench_disk_paxos(metasync, opts):
                 clients = []
                 for i in range(num_prop):
                     storages = map(services.factory, backend)
-                    worker = PaxosWorker(storages, blockList[i], blockList)
+                    worker = DiskPaxosWorker(storages, blockList[i], blockList)
                     clients.append(worker)
                     #dbg.dbg('client %d %s' % (i, worker.clientid))
 

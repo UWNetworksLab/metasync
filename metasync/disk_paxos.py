@@ -7,13 +7,11 @@ import traceback
 import services
 from threading import Thread
 from Queue import Queue
+from params import PAXOS_PNUM_INC
 
 import dbg
 import util
 from error import ItemDoesNotExist
-from params import MSG_VALID_TIME, LOCK_VALID_TIME
-
-MAX_CLIENTS = 10
 
 class Worker(Thread):
   def __init__(self, storage, results):
@@ -161,7 +159,7 @@ class Proposer(object):
   def propose(self, value):
     # user should first call check_locked
     self.starttime = time.time()
-    random.seed()
+    random.seed(time.time())
     exp_backup = 0.5
 
     # retrieve the block list and remove my block
@@ -179,7 +177,7 @@ class Proposer(object):
         return val
       else:
         self._debug_time("another round")
-        self.pnum += MAX_CLIENTS
+        self.pnum += PAXOS_PNUM_INC
         time.sleep(exp_backup+random.random()) # sleep 1 second, wait for others propose
         exp_backup *= 2
 
@@ -189,10 +187,10 @@ class Proposer(object):
       self._init_pnum()
     self.pval = None
 
-    # send the prepare msg
+    # send prepare messages
     msg = '%s,%s,%s' % (self.clientid, self.pnum, self.pval)
-    dbg.dbg('set %s' % msg)
     self.threadpool.submit('set', 0, self.block, msg)
+    # dbg.dbg('set %s' % msg)
 
     # read majority blocks
     results = self.threadpool.submit('readBatch', 'majority', self.blockList)
@@ -202,36 +200,33 @@ class Proposer(object):
       for block in disk:
         block = block.strip()
         if block.endswith('#'):
-          clientid, pnum, pval = block.split(',')
-          accepted = pval.rstrip('#')
-          return accepted
+          clientid, pnum, pval = block.rstrip('#').split(',')
+          return pval
 
-    # find the candidate proposal
+    # check if promised by majority and find the candidate proposal
     candidate = None
     for disk in results:
       for block in disk:
         clientid, pnum, pval = block.split(',')
         pnum = eval(pnum)
-        # check if we need to abandon this round
-        if pnum > self.pnum:
+        # check whether to abandon this round
+        # if both proposal have the same pnum, client with bigger id wins
+        if pnum > self.pnum or (pnum == self.pnum and clientid > self.clientid):
           return None
-        # if both proposal have the same pnum, client with smaller id will continue
-        elif pnum == self.pnum and clientid < self.clientid:
-          return None
-
-        if candidate is None or pnum > candidate[0]:
-          candidate = (pnum, pval)
+        if pval != 'None':
+          if candidate is None or pnum > candidate[1] or (pnum == candidate[1] and clientid > candidate[0]):
+            candidate = (clientid, pnum, pval)
 
     # set the proposal value
-    if candidate is not None and candidate[1] != 'None':
-      self.pval = candidate[1]
+    if candidate is not None:
+      self.pval = candidate[2]
     else:
       self.pval = value
 
-    # write the promised proposal
+    # send accept messages
     msg = '%s,%s,%s' % (self.clientid, self.pnum, self.pval)
-    dbg.dbg('set %s' % msg)
     self.threadpool.submit('set', 0, self.block, msg)
+    # dbg.dbg('set %s' % msg)
 
     # read majority blocks
     results = self.threadpool.submit('readBatch', 'majority', self.blockList)
@@ -244,24 +239,43 @@ class Proposer(object):
           accepted = pval.rstrip('#')
           return accepted
 
-    # check if accepted
-    candidate = None
+    # check if accepted by majority
     for disk in results:
       for block in disk:
         clientid, pnum, pval = block.split(',')
         pnum = eval(pnum)
-        if pnum > self.pnum:
-          return None
-        elif pnum == self.pnum and clientid < self.clientid:
+        if pnum > self.pnum or (pnum == self.pnum and clientid > self.clientid):
           return None
 
-    # if reach here, the proposal is committed
+    # commit the proposal
     msg = '%s,%s,%s#' % (self.clientid, self.pnum, self.pval)
-    dbg.dbg('set %s' % msg)
     self.threadpool.submit('set', 0, self.block, msg)
+    # dbg.dbg('set %s' % msg)
 
     return self.pval
 
   def join(self):
     self.threadpool.join()
 
+class DiskPaxosWorker(Thread):
+  def __init__(self, services, block, blockList):
+      Thread.__init__(self)
+      self.clientid = str(util.gen_uuid())
+      dbg.dbg("Client %s" % self.clientid)
+      self.block = block
+      self.proposer = Proposer(self.clientid, services, block, blockList)
+      self.locked = False
+      self.latency = 0
+
+  def run(self):
+      beg = time.time()
+      val = self.proposer.propose(self.clientid).strip()
+      end = time.time()
+      self.latency = max(end - beg, self.latency)
+      if val == self.clientid:
+          self.locked = True
+          dbg.dbg("Proposal result: %s" % val)
+      # dbg.dbg("%s locked %s: %s" % (self.clientid, self.path, end-beg))
+          
+  def done(self):
+      self.proposer.join()
