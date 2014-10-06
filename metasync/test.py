@@ -908,48 +908,51 @@ def test_bench_paxos(metasync, opts):
 
     from paxos import PPaxosWorker
 
+    repeat = 5
     client_num = [1, 2, 3, 4, 5]
     backend_list = [["google"], ["dropbox"], ["onedrive"], ["box"], ["google", "dropbox", "onedrive"]]
     results = [['Clients'] + [','.join(x) for x in backend_list]]
 
     # start to test
     for num in client_num:
-        row = ['%d clients' % (num)]
-        for backend in backend_list:
-            dbg.info('Test paxos for %d clients and %s' % (num, ','.join(backend)))
-            srvs = map(services.factory, backend)
-            # init log file
-            prefix = 'test-%d-%d' % (num , len(backend))
-            index = new_index(srvs[0], '/ppaxos', prefix)
-            path = '/ppaxos/%s.%d' % (prefix, index)
-            dbg.info(path)
-            for srv in srvs:
-                srv.init_log(path)
+        for _ in range(repeat):
+            row = ['%d clients' % (num)]
+            for backend in backend_list:
+                dbg.info('Test paxos for %d clients and %s' % (num, ','.join(backend)))
+                srvs = map(services.factory, backend)
+                # init log file
+                prefix = 'test-%d-%d' % (num , len(backend))
+                index = new_index(srvs[0], '/ppaxos', prefix)
+                path = '/ppaxos/%s.%d' % (prefix, index)
+                dbg.info(path)
+                for srv in srvs:
+                    srv.init_log(path)
 
-            clients = []
-            for i in range(num):
-                storages = map(services.factory, backend)
-                worker = PPaxosWorker(storages, path)
-                clients.append(worker)
-            for worker in clients:
-                worker.start()
+                clients = []
+                for i in range(num):
+                    storages = map(services.factory, backend)
+                    worker = PPaxosWorker(storages, path)
+                    clients.append(worker)
+                for worker in clients:
+                    worker.start()
 
-            latency = []
-            master_latency = None
-            for worker in clients:
-                worker.join()
-                latency.append(worker.latency)
-                if (worker.master):
-                    assert master_latency is None
-                    master_latency = worker.latency
-            for worker in clients:
-                worker.join()
-            summary = ",".join(map(str,[min(latency), util.median(latency), master_latency, max(latency)]))
-            dbg.info("Result: %s" % summary)
-            row.append(summary)
-        results.append(row)
+                latency = []
+                master_latency = None
+                for worker in clients:
+                    worker.join()
+                    latency.append(worker.latency)
+                    if (worker.master):
+                        assert master_latency is None
+                        master_latency = worker.latency
+                for worker in clients:
+                    worker.join()
+                summary = ",".join(map(str,[min(latency), max(latency), util.median(latency), master_latency]))
+                dbg.info("Result: %s" % summary)
+                row.append(summary)
+            results.append(row)
 
     # tabularize
+    print "Item Format: min,max,median,master"
     for row in results:
         for e in row:
             print "%s \t" % e,
@@ -962,55 +965,58 @@ def test_bench_disk_paxos(metasync, opts):
 
     from disk_paxos import DiskPaxosWorker
 
+    repeat = 5
     client_num = [1, 2, 3, 4, 5]
     backend_list = [["google"], ["dropbox"], ["onedrive"], ["box"], ["google", "dropbox", "onedrive"]]
-
     results = [['Clients'] + [','.join(x) for x in backend_list]]
 
     # start to test
     for num in client_num:
         for num_prop in range(1, num + 1):
-            row = ['%d/%d clients' % (num_prop, num)]
-            for backend in backend_list:
-                srvs = map(services.factory, backend)
-                dbg.info('Test paxos for %d/%d clients and %s' % (num_prop, num, ','.join(backend)))
-                # initialize all disk blocks
-                blockList = []
-                for i in range(num):
-                    path = '/diskpaxos/client%d' % i
-                    for srv in srvs:
-                        if not srv.exists(path):
-                            srv.put(path, '')
-                        else:
-                            srv.update(path, '')
-                    blockList.append(path)
+            for _ in range(repeat):
+                row = ['%d/%d clients' % (num_prop, num)]
+                for backend in backend_list:
+                    for 
+                    srvs = map(services.factory, backend)
+                    dbg.info('Test paxos for %d/%d clients and %s' % (num_prop, num, ','.join(backend)))
+                    # initialize all disk blocks
+                    blockList = []
+                    for i in range(num):
+                        path = '/diskpaxos/client%d' % i
+                        for srv in srvs:
+                            if not srv.exists(path):
+                                srv.put(path, '')
+                            else:
+                                srv.update(path, '')
+                        blockList.append(path)
 
-                clients = []
-                for i in range(num_prop):
-                    storages = map(services.factory, backend)
-                    worker = DiskPaxosWorker(storages, blockList[i], blockList)
-                    clients.append(worker)
-                    #dbg.dbg('client %d %s' % (i, worker.clientid))
-                for worker in clients:
-                    worker.start()
+                    clients = []
+                    for i in range(num_prop):
+                        storages = map(services.factory, backend)
+                        worker = DiskPaxosWorker(storages, blockList[i], blockList)
+                        clients.append(worker)
+                        #dbg.dbg('client %d %s' % (i, worker.clientid))
+                    for worker in clients:
+                        worker.start()
 
-                latency = [] 
-                master_latency = None
-                for worker in clients:
-                    worker.join()
-                    latency.append(worker.latency)
-                    if (worker.master):
-                        assert master_latency is None
-                        master_latency = worker.latency
-                for worker in clients:
-                    worker.join()
-                
-                summary = ",".join(map(str,[min(latency), util.median(latency), master_latency, max(latency)]))
-                dbg.info("Result: %s" % summary)
-                row.append(summary)
-            results.append(row)
+                    latency = [] 
+                    master_latency = None
+                    for worker in clients:
+                        worker.join()
+                        latency.append(worker.latency)
+                        if (worker.master):
+                            assert master_latency is None
+                            master_latency = worker.latency
+                    for worker in clients:
+                        worker.join()
+                    
+                    summary = ",".join(map(str,[min(latency), max(latency), util.median(latency), master_latency]))
+                    dbg.info("Result: %s" % summary)
+                    row.append(summary)
+                results.append(row)
 
     # tabularize
+    print "Item Format: min,max,median,master"
     for row in results:
         for e in row:
             print "%s \t" % e,
