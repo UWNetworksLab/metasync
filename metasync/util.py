@@ -7,6 +7,16 @@ import hashlib
 import uuid
 import ConfigParser
 
+def median(lst):
+    sortlst = sorted(lst)
+    size = len(sortlst)
+    if size % 2 == 1:
+        return sortlst[(size - 1) / 2]
+    else:
+        lower = sortlst[size / 2 - 1]
+        upper = sortlst[size / 2]
+        return float(lower + upper) / 2.0
+
 def current_sec():
   return time.mktime(time.localtime())
 

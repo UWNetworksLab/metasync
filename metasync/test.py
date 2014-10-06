@@ -944,7 +944,7 @@ def test_bench_paxos(metasync, opts):
                     master_latency = worker.latency
             for worker in clients:
                 worker.join()
-            summary = ",".join(map(str,[min(latency), sum(latency)/float(len(latency)), master_latency, max(latency)]))
+            summary = ",".join(map(str,[min(latency), util.median(latency), master_latency, max(latency)]))
             dbg.info("Result: %s" % summary)
             row.append(summary)
         results.append(row)
@@ -1005,7 +1005,7 @@ def test_bench_disk_paxos(metasync, opts):
                 for worker in clients:
                     worker.join()
                 
-                summary = ",".join(map(str,[min(latency), sum(latency)/float(len(latency)), master_latency, max(latency)]))
+                summary = ",".join(map(str,[min(latency), util.median(latency), master_latency, max(latency)]))
                 dbg.info("Result: %s" % summary)
                 row.append(summary)
             results.append(row)
