@@ -41,9 +41,10 @@ class Worker(Thread):
     ret = []
     for path in pathlist:
       try:
-        content = self.storage.get(path).strip(' \0')
-        if len(content) > 0:
-          ret.append(content)
+        content = self.storage.get(path)
+        if content:
+          content = content.strip(' \0')
+          if len(content) > 0: ret.append(content)
       except ItemDoesNotExist:
         pass
     return ret
