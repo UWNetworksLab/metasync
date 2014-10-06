@@ -516,38 +516,30 @@ class OneDriveAPI(StorageAPI, AppendOnlyLog):
 
   def get_logs(self, path, last_clock):
 
-    from params import MSG_VALID_TIME
     beg = time.time()
 
     path = '/Public' + util.format_path(path)
     length = 5
     offset = 0
 
+    # latest comment comes first
     comments = self.get_comments(path, length, offset)
     if not comments:
       return [], None
     
     new_logs = []
     new_clock = comments[0]['id']
-    latest_ts = util.convert_time(comments[0]['created_time'])
-    ends = False
+    end = False
+
     while True:
       for comment in comments:
         if last_clock and comment['id'] == last_clock:
-          ends = True
+          end = True
           break
-        ts = util.convert_time(comment['created_time'])
-        if latest_ts - ts > MSG_VALID_TIME:
-          ends = True
-          break
-        
-        log = {
-          'time': ts,
-          'message': comment['message']
-        }
-        new_logs.insert(0, log)
-      if len(comments) < length: ends = True
-      if ends: break
+        new_logs.insert(0, comment['message'])
+      if end: break
+      if len(comments) < length: break
+      # if haven't reached to end, read next batch
       offset += length
       comments = self.get_comments(path, length, offset)
 

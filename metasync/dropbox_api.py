@@ -265,46 +265,36 @@ class DropboxAPI(StorageAPI, AppendOnlyLog):
 
     return cursor, changes
 
-
   def get_logs(self, path, last_clock):
 
-    from params import MSG_VALID_TIME
-
     length = 5
+    # latest revision comes first
     revisions = self.client.revisions(path, rev_limit=length)
     if not revisions:
       return [], None
 
     new_logs = []
     new_clock = revisions[0]['rev']
-    latest_ts = util.convert_time(revisions[0]['modified'])
-    ends = False
-    append_revs = []
+    end = False # if reach to end
+    seen_revs = []
+
     while True:
       for metadata in revisions:
         if last_clock and metadata['rev'] == last_clock:
-          ends = True
+          end = True
           break
-        ts = util.convert_time(metadata['modified'])
-        if latest_ts - ts > MSG_VALID_TIME:
-          ends = True
-          break
-          
-        if 'is_deleted' in metadata and metadata['is_deleted']:
-          continue
-        if metadata['rev'] in append_revs:
-          continue
-        content = self.get_file_rev(path, metadata['rev'])
-        if content:
-          log = {
-            'time': ts,
-            'message': content
-          }
-          new_logs.insert(0, log)
-        append_revs.append(metadata['rev'])
+        if metadata['rev'] in seen_revs: continue
+        seen_revs.append(metadata['rev'])
+        # download the content of unseen rev
+        if 'is_deleted' in metadata and metadata['is_deleted']: continue
+        msg = self.get_file_rev(path, metadata['rev'])
+        if len(msg) > 0:
+          new_logs.insert(0, msg)
 
-      if len(revisions) < length: ends = True
-      if ends: break
+      if end: break
+      if len(revisions) < length: break
+      
+      # still have logs unread, double the length
       length *= 2
       revisions = self.client.revisions(path, rev_limit=length)
 

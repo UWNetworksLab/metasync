@@ -337,8 +337,6 @@ class BaiduAPI(StorageAPI, AppendOnlyLog):
 
   def get_logs(self, path, last_clock):
 
-    from params import MSG_VALID_TIME
-
     path = util.format_path(path)
 
     url = BaiduAPI.BASE_URL + '/file'
@@ -360,14 +358,8 @@ class BaiduAPI(StorageAPI, AppendOnlyLog):
     lastest_ts = lst[0][1]
 
     for (fn, ts) in lst:
-      if last_clock == None and self.__msg_index(fn) == last_clock:
-        break
-      if lastest_ts - ts > MSG_VALID_TIME:
-        break
-      log = {
-        'time': ts,
-        'message': self.get(path + '/' + fn)
-      }
-      new_logs.insert(0, log)
+      if last_clock == None and self.__msg_index(fn) == last_clock: break
+      msg = self.get(path + '/' + fn)
+      new_logs.insert(0, msg)
 
     return new_logs, new_clock

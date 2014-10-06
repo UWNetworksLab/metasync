@@ -573,43 +573,33 @@ class GoogleAPI(StorageAPI, AppendOnlyLog):
     if self.exists(path):
       self.rm(path)
 
+  # send msg to acceptor file
   def append(self, path, msg):
-    # send msg to acceptor file
     self.post_comment(path, msg)
 
+  # get logs from acceptor file
   def get_logs(self, path, last_clock):
-    # get logs from acceptor file
-    from params import MSG_VALID_TIME
-    
     path = util.format_path(path)
-    metadata = self._path_to_metadata(path)
-    file_id = metadata['id']
+    file_id = self._path_to_metadata(path)['id']
 
+    # latest comment comes first
     comments = self.service.comments().list(fileId=file_id, maxResults=5).execute()
     if not comments['items']:
       return [], None
     
     new_logs = []
     new_clock = comments['items'][0]['commentId']
-    latest_ts = util.convert_time(comments['items'][0]['modifiedDate'])
-    ends = False
+    end = False
+
     while True:
       for comment in comments['items']:
         if last_clock and comment['commentId'] == last_clock:
-          ends = True
+          end = True
           break
-        ts = util.convert_time(comment['modifiedDate'])
-        if latest_ts - ts > MSG_VALID_TIME:
-          ends = True
-          break
-        
-        log = {
-          'time': ts,
-          'message': comment['content']
-        }
-        new_logs.insert(0, log)
-      if 'nextPageToken' not in comments: ends = True
-      if ends: break
+        new_logs.insert(0, comment['content'])
+      if end: break
+      if 'nextPageToken' not in comments: break
+      # get a new batch (5) comments
       comments = self.service.comments().list(fileId=file_id, maxResults=5, pageToken=comments['nextPageToken']).execute()
 
     return new_logs, new_clock

@@ -13,12 +13,8 @@ SYNC_WAIT = 3
 # blob size
 BLOB_UNIT = 32*MB
 
-# params for paxos and lock
-# lock valid time
-LOCK_VALID_TIME = 300 #5min
-
-# message valid time
-MSG_VALID_TIME  = 60  #1min
+# Increase of Paxos proposal number 
+PAXOS_PNUM_INC = 10
 
 # authentication directory
 import os

@@ -608,28 +608,17 @@ class BoxAPI(StorageAPI, AppendOnlyLog):
     self.post_comment(path, msg)
 
   def get_logs(self, path, last_clock):
-
-    from params import MSG_VALID_TIME
-
+    # latest comment comes last
     comments = self.get_comments(path)
     if not comments:
       return [], None
-    comments.reverse()
 
+    comments.reverse()
     new_logs = []
     new_clock = comments[0]['id']
-    latest_ts = util.convert_time(comments[0]['created_at'])
     
     for comment in comments:
-      if last_clock and comment['id'] == last_clock:
-        break
-      ts = util.convert_time(comment['created_at'])
-      if latest_ts - ts > MSG_VALID_TIME:
-        break
-      log = {
-        'time': ts,
-        'message': comment['message']
-      }
-      new_logs.insert(0, log)
+      if last_clock and comment['id'] == last_clock: break
+      new_logs.insert(0, comment['message'])
 
     return new_logs, new_clock
