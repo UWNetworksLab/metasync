@@ -10,6 +10,7 @@ from params import PAXOS_PNUM_INC
 
 import dbg
 import util
+import services
 
 class Acceptor(Thread):
   def __init__(self, clientid, storage, path, results):
@@ -27,9 +28,11 @@ class Acceptor(Thread):
     self.tasks = Queue(10)
     self.results = results
     self.daemon = True
+    self.stop = False
     self.start()
 
   def join(self):
+    self.stop = False
     self.tasks.put( (-1, None, None, None, None) )
     super(Acceptor, self).join()
 
@@ -54,24 +57,18 @@ class Acceptor(Thread):
       
   def update(self):
     logs, new_clock = self.storage.get_logs(self.path, self.clock)
-    #dbg.dbg('[%s %d] %s: %s' % (self.storage.__class__.__name__, self.cmdId,
-    #  new_clock, logs))
     for msg in logs:
       self._commit_msg(msg)
     self.clock = new_clock
-    #dbg.dbg('[%s %d] prom: %s, acc: %s' % (self.storage.__class__.__name__,
-    #  self.cmdId, self.promised, self.accepted))
 
   def send(self, msg):
-    #dbg.dbg('[%s %d] send %s' % (self.storage.__class__.__name__, 
-    #  self.cmdId, msg))
     self.storage.append(self.path, msg)
 
   def run(self):
     while True:
       #dbg.dbg('[%s] wait' % (self.storage.__class__.__name__))
       cmdId, funcname, wait, args, kargs = self.tasks.get()
-      #dbg.dbg('[%s] (%d) get' % (self.storage.__class__.__name__, cmdId))
+      dbg.dbg('[%s] %s cmd: %s' % (self.clientid, services.slug(self.storage), cmdId))
       self.cmdId = cmdId
       if(cmdId == -1):
         #dbg.dbg("cmdId -1, done")
@@ -85,9 +82,14 @@ class Acceptor(Thread):
       if wait: self.results.put((cmdId, self))
       self.tasks.task_done()
 
+      if self.stop:
+        break
+    dbg.dbg("[%s] %s stops" % (self.clientid, services.slug(self.storage)))
+
 class AcceptorPool(object):
   def __init__(self, clientid, storages, path):
     self.cmdId = 0
+    self.clientid = clientid
     self.num_acceptors = len(storages)
     self.results = Queue(self.num_acceptors*10)
     self.acceptors = []
@@ -139,7 +141,8 @@ class Proposer(object):
 
   def _debug_time(self, msg):
     cur = time.time()
-    dbg.paxos_time("%s: %s" % (msg, cur-self.starttime))
+    # dbg.paxos_time("[%s] %s: %s" % (self.clientid, msg, cur-self.starttime))
+    dbg.dbg("[%s] %s: %s" % (self.clientid, msg, cur-self.starttime))
 
   def propose(self, value):
     # user should first call check_locked

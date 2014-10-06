@@ -907,8 +907,7 @@ def test_bench_paxos(metasync, opts):
     from paxos import PPaxosWorker
 
     client_num = [1, 2, 3, 4, 5]
-    backend_list = [["google"], ["dropbox"], ["onedrive"], ["box"], ["baidu"], \
-        ["google", "dropbox", "onedrive"], ["google", "box", "dropbox", "onedrive", "baidu"]]
+    backend_list = [["google"], ["dropbox"], ["onedrive"], ["box"], ["google", "dropbox", "onedrive"]]
     results = [['Clients'] + [','.join(x) for x in backend_list]]
 
     # start to test
@@ -932,7 +931,7 @@ def test_bench_paxos(metasync, opts):
                 clients.append(worker)
             for worker in clients:
                 worker.start()
-            
+
             latency = []
             master_latency = None
             for worker in clients:
@@ -962,8 +961,7 @@ def test_bench_disk_paxos(metasync, opts):
     from disk_paxos import DiskPaxosWorker
 
     client_num = [1, 2, 3, 4, 5]
-    backend_list = [["google"], ["dropbox"], ["onedrive"], ["box"], ["baidu"], \
-        ["google", "dropbox", "onedrive"], ["google", "box", "dropbox", "onedrive"]]
+    backend_list = [["google"], ["dropbox"], ["onedrive"], ["box"], ["google", "dropbox", "onedrive"]]
 
     results = [['Clients'] + [','.join(x) for x in backend_list]]
 

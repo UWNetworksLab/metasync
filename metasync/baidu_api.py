@@ -180,7 +180,7 @@ class BaiduAPI(StorageAPI, AppendOnlyLog):
   def sid(self):
     return util.md5("baidu") % 10000
 
-  def _check_error(self, response):
+  def _check_error(self, response, params):
     if not response.ok:
       err = json.loads(response.text)
       if response.status_code == httplib.BAD_REQUEST and err['error_code'] == 31061:
@@ -189,7 +189,11 @@ class BaiduAPI(StorageAPI, AppendOnlyLog):
           exception = ItemDoesNotExist
       else:
         exception = EXCEPTION_MAP.get(response.status_code, APIError)
-      raise exception(response.status_code, response.text)
+      if 'path' in params:
+        err_info = response.text + "(%s)" % params['path']
+      else:
+        err_info = response.text
+      raise exception(response.status_code, err_info)
 
   def _request(self, method, url, params=None, data=None, headers=None, raw=False, try_refresh=True, **kwargs):
 
@@ -204,7 +208,7 @@ class BaiduAPI(StorageAPI, AppendOnlyLog):
       self.token.refresh()
       return self._request(method, url, params, data, headers, raw, try_refresh=False, **kwargs)
       
-    self._check_error(response)
+    self._check_error(response, params)
     if raw:
       return response
     else:
