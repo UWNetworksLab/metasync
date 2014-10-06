@@ -927,11 +927,12 @@ def test_bench_paxos(metasync, opts):
 
             clients = []
             for i in range(num):
-                srvs = map(services.factory, backend)
-                worker = PPaxosWorker(srvs, path)
+                storages = map(services.factory, backend)
+                worker = PPaxosWorker(storages, path)
                 clients.append(worker)
             for worker in clients:
                 worker.start()
+            
             latency = []
             master_latency = None
             for worker in clients:
@@ -992,7 +993,7 @@ def test_bench_disk_paxos(metasync, opts):
                     #dbg.dbg('client %d %s' % (i, worker.clientid))
                 for worker in clients:
                     worker.start()
-                    
+
                 latency = [] 
                 master_latency = None
                 for worker in clients:

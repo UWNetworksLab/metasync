@@ -93,7 +93,6 @@ class AcceptorPool(object):
     self.acceptors = []
     for storage in storages:
       acc = Acceptor(clientid, storage, path, self.results)
-      storage.init_log(path)
       self.acceptors.append(acc)
 
   def submit(self, funcname, wait, *args, **kargs):
@@ -234,6 +233,7 @@ class Proposer(object):
 class PPaxosWorker(Thread):
   def __init__(self, services, path):
     Thread.__init__(self)
+    random.seed(time.time())
     self.clientid = str(util.gen_uuid())
     self.proposer = Proposer(self.clientid, services, path)
     self.latency = 0

@@ -276,27 +276,26 @@ class DropboxAPI(StorageAPI, AppendOnlyLog):
     new_logs = []
     new_clock = revisions[0]['rev']
     end = False # if reach to end
-    seen_revs = []
 
     while True:
       for metadata in revisions:
         if last_clock and metadata['rev'] == last_clock:
           end = True
           break
-        if metadata['rev'] in seen_revs: continue
-        seen_revs.append(metadata['rev'])
-        # download the content of unseen rev
-        if 'is_deleted' in metadata and metadata['is_deleted']: continue
-        msg = self.get_file_rev(path, metadata['rev'])
-        if len(msg) > 0:
-          new_logs.insert(0, msg)
-
       if end: break
       if len(revisions) < length: break
-      
       # still have logs unread, double the length
       length *= 2
       revisions = self.client.revisions(path, rev_limit=length)
+
+    # download the content of unseen rev
+    for metadata in revisions:
+      if last_clock and metadata['rev'] == last_clock:
+        break
+      if 'is_deleted' in metadata and metadata['is_deleted']: continue
+      msg = self.get_file_rev(path, metadata['rev'])
+      if len(msg) > 0:
+        new_logs.insert(0, msg)
 
     return new_logs, new_clock
 
