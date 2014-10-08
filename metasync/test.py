@@ -962,8 +962,6 @@ def test_bench_paxos2(metasync, opts):
     "bencmark latency of paxos with backends"
 
     def new_index(srv, folder, prefix):
-        if services.slug(srv) == 'onedrive':
-            folder = '/Public' + folder
         if not srv.exists(folder):
             return 0
         files = srv.listdir(folder)
