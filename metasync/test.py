@@ -958,6 +958,74 @@ def test_bench_paxos(metasync, opts):
             print "%s \t" % e,
         print
 
+def test_bench_paxos2(metasync, opts):
+    "bencmark latency of paxos with backends"
+
+    def new_index(srv, folder, prefix):
+        if services.slug(srv) == 'onedrive':
+            folder = '/Public' + folder
+        if not srv.exists(folder):
+            return 0
+        files = srv.listdir(folder)
+        cnt = 0
+        for fn in files:
+            if fn.startswith(prefix):
+                cnt += 1
+        return cnt
+
+    from paxos import PPaxosWorker2
+
+    repeat = 5
+    client_num = [1, 2, 3, 4, 5]
+    backend_list = [["dropbox"], ["onedrive"]]
+    results = [['Clients'] + [','.join(x) for x in backend_list]]
+
+    # start to test
+    for num in client_num:
+        for _ in range(repeat):
+            row = ['%d clients' % (num)]
+            for backend in backend_list:
+                dbg.info('Test paxos for %d clients and %s' % (num, ','.join(backend)))
+                srvs = map(services.factory, backend)
+                # init log file
+                prefix = 'test2-%d-%d' % (num , len(backend))
+                index = new_index(srvs[0], '/ppaxos', prefix)
+                path = '/ppaxos/%s.%d' % (prefix, index)
+                dbg.info(path)
+                for srv in srvs:
+                    srv.init_log2(path)
+
+                clients = []
+                for i in range(num):
+                    storages = map(services.factory, backend)
+                    worker = PPaxosWorker2(storages, path)
+                    clients.append(worker)
+                for worker in clients:
+                    worker.start()
+                for worker in clients:
+                    worker.join()
+
+                latency = []
+                master_latency = None
+                for worker in clients:
+                    latency.append(worker.latency)
+                    if (worker.master):
+                        assert master_latency is None
+                        master_latency = worker.latency
+                assert master_latency is not None
+                
+                summary = ",".join(map(str,[min(latency), max(latency), util.median(latency), master_latency]))
+                dbg.info("Result: %s" % summary)
+                row.append(summary)
+            results.append(row)
+
+    # tabularize
+    print "Item Format: min,max,median,master"
+    for row in results:
+        for e in row:
+            print "%s \t" % e,
+        print
+
 
 def test_bench_disk_paxos(metasync, opts):
     "test disk paxos"

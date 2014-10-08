@@ -21,7 +21,6 @@ CLINET_SECRET = 'CJxXEWQfC07ml95277GnoDrr8M3Ksbc0'
 EXCEPTION_MAP = {
   httplib.UNAUTHORIZED: Unauthorized,
   httplib.BAD_REQUEST: BadRequest,
-  httplib.CONFLICT: ItemAlreadyExists,
   httplib.NOT_FOUND: ItemDoesNotExist
 }
 
@@ -279,9 +278,12 @@ class OneDriveAPI(StorageAPI, AppendOnlyLog):
 
   def _check_error(self, resp):
     if not resp.ok:
-      exception = EXCEPTION_MAP.get(resp.status_code, APIError)
-      text = resp.text.replace('\r', '\n')
-      raise exception(resp.status_code, text)
+      detail = json.loads(resp.text)["error"]
+      if detail["code"] == "resource_already_exists":
+        exception = ItemAlreadyExists
+      else:
+        exception = EXCEPTION_MAP.get(resp.status_code, APIError)
+      raise exception(resp.status_code, str(detail))
 
   def _request(self, method, url, params=None, data=None, headers=None, raw=False, try_refresh=True, **kwargs):
 
@@ -399,16 +401,32 @@ class OneDriveAPI(StorageAPI, AppendOnlyLog):
     parent_id = parent['id']
     url = OneDriveAPI.BASE_URL + '/%s/files/%s' % (parent_id, name)
     strobj = StringIO(content)
-    try:
-      metadata = self._request('PUT', url, data=strobj)
-    except:
-      return False
+    params = { 'overwrite': 'false' }
+    metadata = self._request('PUT', url, params=params, data=strobj)
+
     metadata[u'type'] = u'file'
     self._cache_metadata(path, metadata)
     return True
 
   def update(self, path, content):
-    return self.put(path, content)
+    path = util.format_path(path)
+    name = os.path.basename(path)
+    parent_folder = os.path.dirname(path)
+
+    parent = self._path_to_metadata(parent_folder, isfolder=True)
+    if not parent:
+      # if the parent folder doesn't exist, then create one
+      self.putdir(parent_folder)
+      parent = self._path_to_metadata(parent_folder, isfolder=True)
+
+    parent_id = parent['id']
+    url = OneDriveAPI.BASE_URL + '/%s/files/%s' % (parent_id, name)
+    strobj = StringIO(content)
+    metadata = self._request('PUT', url, data=strobj)
+
+    metadata[u'type'] = u'file'
+    self._cache_metadata(path, metadata)
+    return True
 
   def rm(self, path):
     path = util.format_path(path)
@@ -513,7 +531,6 @@ class OneDriveAPI(StorageAPI, AppendOnlyLog):
     end = time.time()
     dbg.paxos_time("append %s", end-beg)
 
-
   def get_logs(self, path, last_clock):
 
     beg = time.time()
@@ -545,4 +562,49 @@ class OneDriveAPI(StorageAPI, AppendOnlyLog):
 
     end = time.time()
     dbg.paxos_time("get_log %s", end-beg)
+    return new_logs, new_clock
+
+  def __msg_index(self, fn):
+    return eval(fn[3:])
+
+  def init_log2(self, path):
+    if not self.exists(path):
+      self.putdir(path)
+
+  def append2(self, path, msg):
+    path = util.format_path(path)
+    lst = sorted(self.listdir(path))
+    if lst:
+      index = self.__msg_index(lst[-1]) + 1
+    else:
+      index = 0
+    
+    while True:
+      fn = 'msg%d' % index
+      fpath = path + '/' + fn
+      try:
+        self.put(fpath, msg)
+      except ItemAlreadyExists:
+        index += 1
+      else:
+        break
+
+  def get_logs2(self, path, last_clock):
+    path = util.format_path(path)
+    lst = self.listdir(path)
+    if not lst:
+      return [], None
+
+    srt = {}
+    for fn in lst:
+      srt[self.__msg_index(fn)] = fn
+    lst = [srt[i] for i in sorted(srt.keys(), reverse=True)]
+    new_logs = []
+    new_clock = self.__msg_index(lst[0])
+
+    for fn in lst:
+      if last_clock == None and self.__msg_index(fn) == last_clock: break
+      msg = self.get(path + '/' + fn)
+      new_logs.insert(0, msg)
+
     return new_logs, new_clock

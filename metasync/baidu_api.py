@@ -340,28 +340,19 @@ class BaiduAPI(StorageAPI, AppendOnlyLog):
         break
 
   def get_logs(self, path, last_clock):
-
     path = util.format_path(path)
-
-    url = BaiduAPI.BASE_URL + '/file'
-    params = {
-      'method': 'list',
-      'path': BaiduAPI.ROOT_DIR + path,
-    }
-    resp = self._request('GET', url, params=params)['list']
-    if not resp:
+    lst = self.listdir(path)
+    if not lst:
       return [], None
 
-    from operator import itemgetter
-    lst = [(os.path.basename(x['path']), x['ctime']) for x in resp]
-    lst = sorted(lst, key=itemgetter(1))
-    lst.reverse()
-    
+    srt = {}
+    for fn in lst:
+      srt[self.__msg_index(fn)] = fn
+    lst = [srt[i] for i in sorted(srt.keys(), reverse=True)]
     new_logs = []
-    new_clock = self.__msg_index(lst[0][0])
-    lastest_ts = lst[0][1]
+    new_clock = self.__msg_index(lst[0])
 
-    for (fn, ts) in lst:
+    for fn in lst:
       if last_clock == None and self.__msg_index(fn) == last_clock: break
       msg = self.get(path + '/' + fn)
       new_logs.insert(0, msg)

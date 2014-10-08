@@ -64,11 +64,21 @@ class Acceptor(Thread):
   def send(self, msg):
     self.storage.append(self.path, msg)
 
+  def update2(self):
+    logs, new_clock = self.storage.get_logs2(self.path, self.clock)
+    dbg.dbg('[%s] %s: %s' % (self.clientid, new_clock, logs))
+    for msg in logs:
+      self._commit_msg(msg)
+    self.clock = new_clock
+
+  def send2(self, msg):
+    self.storage.append2(self.path, msg)
+
   def run(self):
     while True:
       #dbg.dbg('[%s] wait' % (self.storage.__class__.__name__))
       cmdId, funcname, wait, args, kargs = self.tasks.get()
-      dbg.dbg('[%s] %s cmd: %s' % (self.clientid, services.slug(self.storage), cmdId))
+      # dbg.dbg('[%s] %s cmd: %s' % (self.clientid, services.slug(self.storage), cmdId))
       self.cmdId = cmdId
       if(cmdId == -1):
         #dbg.dbg("cmdId -1, done")
@@ -84,7 +94,7 @@ class Acceptor(Thread):
 
       if self.stop:
         break
-    dbg.dbg("[%s] %s stops" % (self.clientid, services.slug(self.storage)))
+    # dbg.dbg("[%s] %s stops" % (self.clientid, services.slug(self.storage)))
 
 class AcceptorPool(object):
   def __init__(self, clientid, storages, path):
@@ -165,12 +175,14 @@ class Proposer(object):
         time.sleep(exp_backup+random.random()) # sleep 1 second, wait for others propose
         exp_backup *= 2
 
-  def check_locked(self):
+  def get_commit_value(self):
     accList = self.acceptorPool.submit('update', True)
-    return (self.check_status(accList) != None)
+    for acc in accList:
+      if acc.commit is not None:
+        return acc.commit
+    return None
 
   def propose_once(self, value):
-
     if not self.pnum:
       self._init_pnum()
     self.pval = None
@@ -234,6 +246,89 @@ class Proposer(object):
   def join(self):
     self.acceptorPool.join()
 
+  def propose2(self, value):
+    # user should first call check_locked
+    self.starttime = time.time()
+    random.seed(time.time())
+    exp_backup = 0.5
+
+    # init pval & pnum
+    self.pnum = None
+    self.pval = None
+
+    while True:
+      val = self.propose_once2(value)
+      if val != None:
+        self._debug_time("done: %s" % val)
+        return val
+      else:
+        self._debug_time("another round")
+        self.pnum += PAXOS_PNUM_INC
+        time.sleep(exp_backup+random.random()) # sleep 1 second, wait for others propose
+        exp_backup *= 2
+
+  def propose_once2(self, value):
+
+    if not self.pnum:
+      self._init_pnum()
+    self.pval = None
+
+    # send prepare messages
+    msg = "%s,%s,%s" % (self.clientid, self.pnum, self.pval)
+    self.acceptorPool.submit('send2', False, msg)
+    self._debug_time("sent prepare: %s" % msg)
+
+    # update acceptors and wait for majority
+    accList = self.acceptorPool.submit('update2', True)
+    self._debug_time("get prepare result")
+
+    # check if any value is committed
+    for acc in accList:
+      if acc.commit is not None:
+        return acc.commit
+
+    # check if promised by majority and find the candidate proposal
+    candidate = None
+    for acc in accList:
+      if acc.promise is not None:
+        if acc.promise[1] > self.pnum or (acc.promise[1] == self.pnum and acc.promise[0] > self.clientid):
+          return None
+      if acc.accept is not None:
+        if candidate is None or acc.accept[1] > candidate[1] or (acc.accept[1] == candidate[1] and acc.accept[0] > candidate[0]):
+          candidate = acc.accept
+
+    # set the proposal value
+    if candidate is not None:
+      self.pval = candidate[2]
+    else:
+      self.pval = value
+
+     # send accept messages
+    msg = "%s,%s,%s" % (self.clientid, self.pnum, self.pval)
+    self.acceptorPool.submit('send2', False, msg)
+    self._debug_time("sent accept: %s" % msg)
+
+    # update acceptors and wait for majority
+    accList = self.acceptorPool.submit('update2', True)
+    self._debug_time("accept result")
+
+    # check if any value is committed
+    for acc in accList:
+      if acc.commit is not None:
+        return acc.commit
+
+    # check if accepted by majority
+    for acc in accList:
+      if acc.accept is None or acc.accept[2] != self.pval:
+        return None
+
+    # commit the proposal
+    msg = "%s#" % self.pval
+    self.acceptorPool.submit('send2', False, msg)
+    self._debug_time("sent commit: %s" % msg)
+
+    return self.pval
+
 class PPaxosWorker(Thread):
   def __init__(self, services, path):
     Thread.__init__(self)
@@ -255,4 +350,27 @@ class PPaxosWorker(Thread):
           
   def join(self):
     super(PPaxosWorker, self).join()
+    self.proposer.join()
+
+class PPaxosWorker2(Thread):
+  def __init__(self, services, path):
+    Thread.__init__(self)
+    random.seed(time.time())
+    self.clientid = str(util.gen_uuid())
+    self.proposer = Proposer(self.clientid, services, path)
+    self.latency = 0
+    self.master = False
+    dbg.dbg("Client %s" % self.clientid)
+
+  def run(self):
+    beg = time.time()
+    val = self.proposer.propose2(self.clientid).strip()
+    end = time.time()
+    self.latency = max(end - beg, self.latency)
+    if val == self.clientid:
+        self.master = True
+        dbg.dbg("Proposal result: %s (%s)" % (val, self.latency))
+          
+  def join(self):
+    super(PPaxosWorker2, self).join()
     self.proposer.join()
