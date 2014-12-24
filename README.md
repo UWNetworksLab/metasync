@@ -11,5 +11,10 @@ MetaSync: File Synchronization Across Multiple Untrusted Storage Services
 ```
 $ cd yourdirectory
 $ python setup.py install
+```
 
+**To develop:**
+
+```
+$ python setup.py develop
 ```
