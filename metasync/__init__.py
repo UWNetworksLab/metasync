@@ -215,7 +215,7 @@ def invoke_cmd(cmd, metasync, args):
 def main():
     # do all the dirty works on command args
     parser = argparse.ArgumentParser(prog='MetaSync')
-    parser.add_argument('--version', action='version', version='%(prog)s 0.2')
+    parser.add_argument('--version', action='version', version='%(prog)s 0.2.1')
     parser.add_argument('--quite', action='store_true', default=False)
     parser.add_argument('--debug', action='store_true', default=False)
     parser.add_argument('--authdir', default=None)
