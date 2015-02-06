@@ -136,7 +136,7 @@ def _get_conf_services(default):
         print "    %s" % doc
     return raw_input("> ").strip()
 
-def _get_conf_nreplicas(default):
+def _get_conf_nreplicas(default, nservices):
     assert type(default) in [types.NoneType, int]
 
     if default is not None:
@@ -149,8 +149,12 @@ def _get_conf_nreplicas(default):
         if replicas == "":
             replicas = "2"
         if replicas.isdigit():
-            return replicas
-        print "input the number"
+            if int(replicas) > nservices:
+                dbg.err("the number of replicas should not be larger than the number of services")
+            else:
+                return replicas
+        else:
+            print "input the number"
 
 def _get_conf_encryptkey(default):
     assert type(default) in [types.NoneType, str]
@@ -163,10 +167,12 @@ def _get_conf_encryptkey(default):
     encrypt_key = ""
 
     print "do you use encryption (y/n)?"
-    encrypt_yn = raw_input("> ").strip().lower()
-    if(encrypt_yn not in ['y','n']):
-        dbg.err("input with y/n")
-        exit(-1)
+    while True:
+        encrypt_yn = raw_input("> ").strip().lower()
+        if(encrypt_yn not in ['y','n']):
+            dbg.err("input with y/n")
+            continue
+        break
     if(encrypt_yn == 'y'):
         print "input keyphrase:"
         encrypt_key = raw_input("> ").strip()
@@ -243,6 +249,7 @@ class MetaSync:
             self.srvmap[srv.sid()] = srv
 
         self.nreplicas = int(self.config.get("backend", "nreplicas"))
+            
         nthreads = self.options.nthreads if self.options is not None else 2
         self.scheduler = Scheduler(self.services, (nthreads+1)*len(self.srvmap))
 
@@ -1027,7 +1034,7 @@ class MetaSync:
     def cmd_init(self, namespace, backend=None, nreplicas=None, encrypt_key=None):
         # already initialized?
         if self.check_sanity():
-            dbg.warn("already initialized %s (%s)" \
+            dbg.err("already initialized %s (%s)" \
                      % (self.path_root, self.namespace))
             return False
 
@@ -1047,8 +1054,12 @@ class MetaSync:
         # backend: info about sync service providers
         # XXX: Error handling
         conf.add_section('backend')
-        conf.set('backend', 'services' , _get_conf_services(backend))
-        conf.set('backend', 'nreplicas', _get_conf_nreplicas(nreplicas))
+        try:
+            services = _get_conf_services(backend)
+            conf.set('backend', 'services' , services)
+            conf.set('backend', 'nreplicas', _get_conf_nreplicas(nreplicas, len(services.split(","))))
+        except:
+            pass
 
         # flush
         with open(self.path_conf, "w") as fd:
