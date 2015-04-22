@@ -69,6 +69,7 @@ class DiskAPI(StorageAPI, AppendOnlyLog):
         import portalocker
         import time
         pn = self.get_path(path)
+        util.mkdirs(os.path.dirname(pn))
         with open(pn, "a+") as log:
             while True:
                 try:
@@ -99,11 +100,12 @@ class DiskAPI(StorageAPI, AppendOnlyLog):
         for line in lines:
             sp = line.strip().split("\t")
             if(int(sp[0]) < last_clock): continue
-            log = {
-                'time': eval(sp[0]),
-                'message': sp[1]
-            }
-            ret.append(log)
+            #log = {
+            #    'time': eval(sp[0]),
+            #    'message': sp[1]
+            #}
+            #ret.append(log)
+            ret.append(sp[1])
         return ret, curtime
 
     def __str__(self):
