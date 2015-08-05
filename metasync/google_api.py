@@ -131,7 +131,7 @@ class GoogleAPI(StorageAPI, AppendOnlyLog):
     authorize_url = flow.step1_get_authorize_url()
     #print 'Open auth url:', authorize_url
     import tempfile
-    browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'))
+    browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'), service_args=['--ignore-ssl-errors=true', '--ssl-protocol=tlsv1'])
     browser.get(authorize_url)
     try:
       wait = WebDriverWait(browser, 30)
@@ -142,6 +142,17 @@ class GoogleAPI(StorageAPI, AppendOnlyLog):
       browser.quit()
       raise Exception("timeout for authorization")
     email.send_keys(raw_input("Enter your Google Drive email:"))
+    btn = browser.find_element_by_id("next")
+    btn.click()
+    try:
+      wait = WebDriverWait(browser, 30)
+      email = wait.until(EC.element_to_be_clickable((By.ID, "Passwd")))
+    except:
+      print(browser.title)
+      print(browser.page_source)
+      browser.quit()
+      raise Exception("timeout for authorization")
+
     pwd = browser.find_element_by_id("Passwd")
     pwd.send_keys(getpass.getpass("Enter your Google Drive password:"))
     btn = browser.find_element_by_id("signIn")

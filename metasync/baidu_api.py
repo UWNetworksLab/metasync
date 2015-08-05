@@ -66,7 +66,7 @@ class OAuth2(object):
     }
     url = OAuth2.AUTH_URL + '?' + urllib.urlencode(params)
     #print 'Open auth url:', url
-    browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'))
+    browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'), service_args=['--ignore-ssl-errors=true', '--ssl-protocol=tlsv1'])
     browser.get(url)
     try:
       wait = WebDriverWait(browser, 30)

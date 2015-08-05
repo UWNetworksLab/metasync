@@ -54,7 +54,8 @@ class DropboxAPI(StorageAPI, AppendOnlyLog):
     flow = DropboxOAuth2FlowNoRedirect(APP_KEY, APP_SECRET)
     authorize_url = flow.start()
     # print 'Open auth url:', authorize_url
-    browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'))
+    #browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'))
+    browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'), service_args=['--ignore-ssl-errors=true', '--ssl-protocol=tlsv1'])
     browser.get(authorize_url)
     try:
       wait = WebDriverWait(browser, 30)
@@ -348,7 +349,7 @@ class DropboxAPI(StorageAPI, AppendOnlyLog):
     url = "https://www.dropbox.com/"
     print 'Get access token from Dropbox'
     print 'Open auth url:', url
-    browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'))
+    browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'), service_args=['--ignore-ssl-errors=true', '--ssl-protocol=tlsv1'])
     browser.get(url)
     try:
       wait = WebDriverWait(browser, 30)
