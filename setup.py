@@ -3,7 +3,7 @@ import subprocess, os
 from pkg_resources import parse_version
 phantomjs_msg = "Metasync requires phantomjs>=1.9.2 binary in PATH"
 try:
-    v = subprocess.check_output(["phantomjs","--version"]).strip()
+    v = subprocess.check_output(["phantomjs","--version"]).strip().decode("ascii")
     target_version = "1.9.2"
     if parse_version(v) < parse_version(target_version):
         raise Exception()
