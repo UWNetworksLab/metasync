@@ -562,6 +562,10 @@ class GoogleAPI(StorageAPI, AppendOnlyLog):
     try:
       path = util.format_path(path)
       metadata = self._path_to_metadata(path)
+      if metadata is None:
+        self.init_log(path)
+        metadata = self._path_to_metadata(path)
+
       file_id = metadata['id']
 
       new_comment = {
