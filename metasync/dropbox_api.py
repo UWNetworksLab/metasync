@@ -55,43 +55,12 @@ class DropboxAPI(StorageAPI, AppendOnlyLog):
     authorize_url = flow.start()
     # print 'Open auth url:', authorize_url
     #browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'))
-    browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'), service_args=['--ignore-ssl-errors=true', '--ssl-protocol=tlsv1'])
-    browser.get(authorize_url)
-    try:
-      wait = WebDriverWait(browser, 30)
-      email = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[@name='login_email']")))
-    except:
-      print(browser.title)
-      print(browser.page_source)
-      browser.quit()
-      raise Exception("timeout for authorization")
-    email.send_keys(raw_input("Enter your Dropbox email:"))
-    pwd = browser.find_element_by_xpath("//input[@name='login_password']") 
-    pwd.send_keys(getpass.getpass("Enter your Dropbox password:"))
-    pwd.send_keys(Keys.RETURN)
-    try:
-      wait = WebDriverWait(browser, 30)
-      btn = wait.until(EC.element_to_be_clickable((By.NAME, "allow_access")))
-    except:
-      print(browser.title)
-      print(browser.page_source)
-      browser.quit()
-      raise Exception("timeout for authorization")
-    btn.click()
-    try:
-      wait = WebDriverWait(browser, 30)
-      auth_code = wait.until(EC.presence_of_element_located((By.ID, "auth-code")))
-    except:
-      print(browser.title)
-      print(browser.page_source)
-      browser.quit()
-      raise Exception("timeout for authorization")
-    print(browser.title)
-    #auth_code = browser.find_element_by_id("auth-code")
-    code = auth_code.text
-
-    browser.quit()
-
+    #browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'), service_args=['--ignore-ssl-errors=true', '--ssl-protocol=tlsv1'])
+    # Change to rely on browser
+    print("We need to authorize access to Dropbox. Please visit the following URL and authorize the access:")
+    print(authorize_url)
+    print("")
+    code = raw_input("Input the code you got: ").strip()
     #code = #raw_input("Enter the authorization code here: ").strip()
     access_token, user_id = flow.finish(code)
     with open(self.auth_file, 'w') as file:
