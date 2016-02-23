@@ -17,7 +17,7 @@ class Acceptor(Thread):
     Thread.__init__(self)
     
     self.clientid = clientid
-    self.storage = storage
+    self.storage = storage.copy()
     self.path = path
     self.clock = None
 

@@ -4,8 +4,6 @@ import os
 import sys
 import json
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'google')))
-
 import httplib2
 from apiclient import discovery, errors
 from apiclient.http import MediaFileUpload
@@ -546,13 +544,11 @@ class GoogleAPI(StorageAPI, AppendOnlyLog):
 
   # send msg to acceptor file
   def append(self, path, msg):
-    print("msg " + msg)
     self.post_comment(path, msg)
 
   # get logs from acceptor file
   def get_logs(self, path, last_clock):
     path = util.format_path(path)
-    print(path)
     file_id = self._path_to_metadata(path)['id']
 
     # latest comment comes first
@@ -566,7 +562,6 @@ class GoogleAPI(StorageAPI, AppendOnlyLog):
 
     while True:
       for comment in comments['items']:
-        print(comment)
         if last_clock and comment['commentId'] == last_clock:
           end = True
           break
