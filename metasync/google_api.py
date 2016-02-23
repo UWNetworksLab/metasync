@@ -129,53 +129,9 @@ class GoogleAPI(StorageAPI, AppendOnlyLog):
     oauth_callback = client.OOB_CALLBACK_URN
     flow.redirect_uri = oauth_callback
     authorize_url = flow.step1_get_authorize_url()
-    #print 'Open auth url:', authorize_url
-    import tempfile
-    browser = webdriver.PhantomJS(service_log_path=os.path.join(tempfile.gettempdir(), 'ghostdriver.log'), service_args=['--ignore-ssl-errors=true', '--ssl-protocol=tlsv1'])
-    browser.get(authorize_url)
-    try:
-      wait = WebDriverWait(browser, 30)
-      email = wait.until(EC.element_to_be_clickable((By.ID, "Email")))
-    except:
-      print(browser.title)
-      print(browser.page_source)
-      browser.quit()
-      raise Exception("timeout for authorization")
-    email.send_keys(raw_input("Enter your Google Drive email:"))
-    btn = browser.find_element_by_id("next")
-    btn.click()
-    try:
-      wait = WebDriverWait(browser, 30)
-      email = wait.until(EC.element_to_be_clickable((By.ID, "Passwd")))
-    except:
-      print(browser.title)
-      print(browser.page_source)
-      browser.quit()
-      raise Exception("timeout for authorization")
-
-    pwd = browser.find_element_by_id("Passwd")
-    pwd.send_keys(getpass.getpass("Enter your Google Drive password:"))
-    btn = browser.find_element_by_id("signIn")
-    btn.click()
-    try:
-      wait = WebDriverWait(browser, 30)
-      btn = wait.until(EC.element_to_be_clickable((By.ID, "submit_approve_access")))
-    except:
-      print(browser.title)
-      print(browser.page_source)
-      browser.quit()
-      raise Exception("timeout for authorization")
-    btn.click()
-    try:
-      wait = WebDriverWait(browser, 30)
-      wait.until(EC.title_contains("Success code"))
-    except:
-      print(browser.title)
-      print(browser.page_source)
-      browser.quit()
-      raise Exception("timeout for authorization")
-    code = browser.title.split("=")[1]
-    browser.quit()
+    print("We need to authorize access to Google. Please visit the following URL and authorize the access:")
+    print(authorize_url)
+    code = raw_input("Input the code you got: ").strip()
 
     try:
       credential = flow.step2_exchange(code)
@@ -590,11 +546,13 @@ class GoogleAPI(StorageAPI, AppendOnlyLog):
 
   # send msg to acceptor file
   def append(self, path, msg):
+    print("msg " + msg)
     self.post_comment(path, msg)
 
   # get logs from acceptor file
   def get_logs(self, path, last_clock):
     path = util.format_path(path)
+    print(path)
     file_id = self._path_to_metadata(path)['id']
 
     # latest comment comes first
@@ -608,6 +566,7 @@ class GoogleAPI(StorageAPI, AppendOnlyLog):
 
     while True:
       for comment in comments['items']:
+        print(comment)
         if last_clock and comment['commentId'] == last_clock:
           end = True
           break
